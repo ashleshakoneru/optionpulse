@@ -12,10 +12,16 @@ exports.handler = async (event) => {
   try {
     const body = JSON.parse(event.body || '{}');
 
+    const anthropicKey = process.env.ANTHROPIC_API_KEY;
+    if (!anthropicKey) {
+      return { statusCode: 500, headers, body: JSON.stringify({ error: 'ANTHROPIC_API_KEY not set' }) };
+    }
+
     const res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'x-api-key': anthropicKey,
         'anthropic-version': '2023-06-01'
       },
       body: JSON.stringify(body)
