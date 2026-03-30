@@ -1305,10 +1305,7 @@
       </div>
     </div>
 
-    <!-- Execution hint -->
-    <div class="exec-hint">
-      📱 <span>To execute: Open Robinhood → Search ticker → Tap <b>Trade</b> → <b>Trade Options</b> → select expiry &amp; strike → <b>Buy to Open</b> → set limit order near entry price.</span>
-    </div>
+
 
   </div>
 
@@ -1491,7 +1488,7 @@
       <div>
         <div class="field-label">Ticker</div>
         <select id="f-ticker" class="field-input">
-          <option>SPY</option><option>QQQ</option><option>NVDA</option><option>AMD</option>
+          <option>SPY</option><option>QQQ</option><option>NVDA</option><option>AMD</option><option>PLTR</option>
         </select>
       </div>
       <div>
@@ -1933,26 +1930,29 @@ Intraday trend: ${trend}. NVDA has earnings in ~3 weeks (elevated IV risk).
   }
 
   const candleContext = buildCandleContext();
-  function getNextExpiries(count = 5) {
+  function getNextExpiries(count = 6) {
     const dates = [];
     const d = new Date();
-    // Also include this week's Wednesday/Thursday weeklies for SPY/QQQ
     d.setHours(0,0,0,0);
     let checked = 0;
     while (dates.length < count && checked < 90) {
       d.setDate(d.getDate() + 1);
       checked++;
       const day = d.getDay();
-      // Options expire on Fridays (5), some weeklies on Wed (3) for SPY/QQQ
-      if (day === 5) {
+      // Wednesdays (3) and Fridays (5) — matches what Robinhood shows
+      if (day === 3 || day === 5) {
         const label = d.toLocaleDateString('en-US', { month:'short', day:'numeric' });
         dates.push(label);
       }
     }
     return dates;
   }
-  const nextExpiries = getNextExpiries(5);
-  const expiryNote  = `Available expiry dates (use EXACTLY these formats as shown in Robinhood): ${nextExpiries.join(', ')}`;
+  const nextExpiries = getNextExpiries(6);
+  const expiryNote = `CRITICAL — only use these exact expiry dates (as shown in Robinhood): ${nextExpiries.join(', ')}
+- AMD, NVDA, PLTR: Fridays only (skip Wednesdays)
+- SPY, QQQ: any date in the list
+- NEVER invent a date not listed above (Apr 3, Apr 5 etc do not exist)
+- Format exactly as shown e.g. "Apr 10" not "April 10"`;
 
   const prompt = `You are an options trading signal AI for a beginner paper trader using Robinhood.
 The trader watches: SPY, QQQ, NVDA, AMD, PLTR.
