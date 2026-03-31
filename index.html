@@ -1091,6 +1091,47 @@
     font-style: italic;
   }
 
+  /* ── News cards ── */
+  .news-card {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin-bottom: 8px;
+  }
+  .news-move {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 6px;
+  }
+  .news-move-badge {
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 4px;
+  }
+  .news-move-badge.up   { background: var(--call-dim); color: var(--call); }
+  .news-move-badge.down { background: var(--put-dim);  color: var(--put); }
+  .news-ticker-label { font-family: var(--mono); font-size: 12px; font-weight: 600; }
+  .news-reason { font-size: 11.5px; color: var(--subtle); line-height: 1.5; margin-bottom:6px; }
+  .news-headline {
+    font-size: 11px;
+    color: var(--muted);
+    padding: 6px 8px;
+    background: var(--surface2);
+    border-radius: 5px;
+    margin-bottom: 4px;
+    line-height: 1.4;
+  }
+  .news-headline:last-child { margin-bottom: 0; }
+  .news-sentiment {
+    font-size: 10px;
+    font-family: var(--mono);
+    margin-top: 6px;
+  }
+
   /* ── Auto-refresh ── */
     background: var(--surface);
     border: 1px solid var(--border2);
@@ -1373,7 +1414,17 @@
     </div>
 
     <div class="sidebar-section">
-      <div class="sidebar-label">Market Conditions</div>
+      <div class="sidebar-label" style="display:flex;align-items:center;justify-content:space-between">
+        <span>Why is it moving?</span>
+        <button onclick="fetchMarketNews()" id="news-refresh-btn" style="font-family:var(--mono);font-size:9px;padding:2px 7px;border-radius:4px;border:1px solid var(--border2);background:none;color:var(--muted);cursor:pointer">↻ Refresh</button>
+      </div>
+      <div id="news-container">
+        <div style="font-size:11px;color:var(--muted);padding:8px 4px">Tap a ticker above to see why it's moving today.</div>
+      </div>
+      <div id="news-last-updated" style="font-family:var(--mono);font-size:9px;color:var(--muted);padding:4px;text-align:right"></div>
+    </div>
+
+    <div class="sidebar-section">
       <div class="conditions">
         <div class="condition-row">
           <span class="cond-label">VIX</span>
@@ -1584,7 +1635,10 @@
     <div class="panel-section">
       <div class="panel-title" style="display:flex;align-items:center;justify-content:space-between">
         <span>Trade Journal</span>
-        <button class="add-trade-btn" onclick="openTradeModal()">+ Log Trade</button>
+        <div style="display:flex;gap:6px">
+          <button class="add-trade-btn" onclick="generateMonthlyReport()" style="border-color:rgba(240,180,41,0.4);color:var(--neutral);background:rgba(240,180,41,0.06)">📊 Report</button>
+          <button class="add-trade-btn" onclick="openTradeModal()">+ Log Trade</button>
+        </div>
       </div>
       <div id="trade-log">
       <div id="trade-log-empty" style="font-size:12px;color:var(--muted);padding:12px 0;text-align:center">No trades logged yet.<br>Hit "+ Log Trade" to add your first entry.</div>
@@ -1638,6 +1692,16 @@
         <button class="dir-btn active" id="dir-call" onclick="setDir('CALL')">▲ CALL</button>
         <button class="dir-btn" id="dir-put" onclick="setDir('PUT')">▼ PUT</button>
       </div>
+    </div>
+
+    <!-- Did it or Watched it -->
+    <div style="margin-bottom:14px">
+      <div class="field-label">Trade Type</div>
+      <div style="display:flex;gap:8px">
+        <button class="dir-btn active" id="tt-did" onclick="setTradeType('DID')" style="flex:1;background:rgba(0,214,143,0.1);border-color:rgba(0,214,143,0.4);color:var(--call)">✅ I Did This Trade</button>
+        <button class="dir-btn" id="tt-watched" onclick="setTradeType('WATCHED')" style="flex:1">👁 Just Watching</button>
+      </div>
+      <div id="tt-hint" style="font-size:10.5px;color:var(--muted);margin-top:5px">P&L will be tracked for trades you execute</div>
     </div>
 
     <!-- Ticker + Strike -->
@@ -1734,9 +1798,10 @@ setInterval(updateClock, 1000);
 updateClock();
 
 // ── Ticker selection ──
-function selectTicker(el) {
+function selectTicker(el, sym) {
   document.querySelectorAll('.ticker-card').forEach(c => c.classList.remove('active'));
   el.classList.add('active');
+  if (sym) fetchMarketNews(sym);
 }
 
 // ── Real prices via Yahoo Finance (multiple proxy fallbacks) ──
@@ -2352,24 +2417,35 @@ function renderHistoryPage() {
   container.innerHTML = '';
 
   // Stats bar
-  const calls = signalHistory.filter(s => s.direction === 'CALL').length;
-  const puts  = signalHistory.filter(s => s.direction === 'PUT').length;
+  const calls   = signalHistory.filter(s => s.direction === 'CALL').length;
+  const puts    = signalHistory.filter(s => s.direction === 'PUT').length;
+  const wins    = signalHistory.filter(s => s.outcome === 'WIN').length;
+  const losses  = signalHistory.filter(s => s.outcome === 'LOSS').length;
   const avgConf = signalHistory.length ? Math.round(signalHistory.reduce((s,x) => s + (x.confidence||0), 0) / signalHistory.length) : 0;
+  const winRate = (wins + losses) > 0 ? Math.round((wins / (wins + losses)) * 100) : null;
+
   const statsBar = document.createElement('div');
   statsBar.className = 'stats-bar';
   statsBar.innerHTML = `
-    <div class="stat-item"><div class="stat-val" style="color:var(--text)">${signalHistory.length}</div><div class="stat-lbl">Total Signals</div></div>
+    <div class="stat-item"><div class="stat-val" style="color:var(--text)">${signalHistory.length}</div><div class="stat-lbl">Total</div></div>
     <div class="stat-item"><div class="stat-val" style="color:var(--call)">${calls}</div><div class="stat-lbl">Calls</div></div>
     <div class="stat-item"><div class="stat-val" style="color:var(--put)">${puts}</div><div class="stat-lbl">Puts</div></div>
-    <div class="stat-item"><div class="stat-val" style="color:var(--accent)">${avgConf}%</div><div class="stat-lbl">Avg Confidence</div></div>
+    <div class="stat-item"><div class="stat-val" style="color:var(--call)">${wins}</div><div class="stat-lbl">Wins</div></div>
+    <div class="stat-item"><div class="stat-val" style="color:var(--put)">${losses}</div><div class="stat-lbl">Losses</div></div>
+    ${winRate !== null ? `<div class="stat-item"><div class="stat-val" style="color:${winRate>=50?'var(--call)':'var(--put)'}">${winRate}%</div><div class="stat-lbl">Win Rate</div></div>` : ''}
+    <div class="stat-item"><div class="stat-val" style="color:var(--accent)">${avgConf}%</div><div class="stat-lbl">Avg Conf</div></div>
   `;
   container.appendChild(statsBar);
 
   filtered.forEach(s => {
     const isCall = s.direction === 'CALL';
     const inds = (s.indicators || []).slice(0,3).map(i => `<span class="ind-tag ${i.type}" style="font-size:9px;padding:2px 6px">${i.label}</span>`).join('');
+    const outcomeColor = s.outcome === 'WIN' ? 'var(--call)' : s.outcome === 'LOSS' ? 'var(--put)' : s.outcome === 'SCRATCH' ? 'var(--muted)' : 'var(--neutral)';
+    const outcomeLabel = { WIN:'✅ Win', LOSS:'❌ Loss', SCRATCH:'➖ Scratch', OPEN:'🟡 Open', EXPIRED:'⏰ Expired' }[s.outcome || 'OPEN'] || '🟡 Open';
+
     const card = document.createElement('div');
     card.className = `hist-card ${isCall ? 'call' : 'put'}`;
+    card.dataset.id = s.id;
     card.innerHTML = `
       <div class="hist-top">
         <div class="hist-left">
@@ -2379,7 +2455,10 @@ function renderHistoryPage() {
             <div class="hist-meta">${s.expiry} · ${s.tradeType === 'day' ? '⚡ Day' : '📅 Swing'}</div>
           </div>
         </div>
-        <div class="hist-conf">${s.confidence}%</div>
+        <div style="text-align:right">
+          <div class="hist-conf">${s.confidence}%</div>
+          <div style="font-size:10px;color:${outcomeColor};font-family:var(--mono);margin-top:2px">${outcomeLabel}</div>
+        </div>
       </div>
       <div class="hist-details">
         <div>Entry <span>${s.entryPrice}</span></div>
@@ -2388,7 +2467,37 @@ function renderHistoryPage() {
         ${s.volume ? `<div>Vol <span>${s.volume}</span></div>` : ''}
       </div>
       <div class="hist-rationale">${s.rationale || ''}</div>
-      <div style="display:flex;gap:4px;flex-wrap:wrap">${inds}</div>
+      <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px">${inds}</div>
+
+      <!-- User Analysis Notes -->
+      ${s.userNotes ? `
+        <div style="background:rgba(61,126,255,0.06);border:1px solid rgba(61,126,255,0.2);border-radius:6px;padding:8px 10px;margin-bottom:8px;font-size:11.5px;color:var(--subtle)">
+          <strong style="color:var(--accent);font-size:10px;letter-spacing:0.05em">YOUR ANALYSIS:</strong><br>${s.userNotes}
+        </div>` : ''}
+
+      <!-- AI Review of user analysis -->
+      ${s.aiReview ? `
+        <div style="background:rgba(0,214,143,0.05);border:1px solid rgba(0,214,143,0.2);border-radius:6px;padding:8px 10px;margin-bottom:8px;font-size:11.5px;color:var(--subtle)">
+          <strong style="color:var(--call);font-size:10px;letter-spacing:0.05em">🤖 AI REVIEW:</strong><br>${s.aiReview}
+        </div>` : ''}
+
+      <!-- Actual result if set -->
+      ${s.actualPrice ? `
+        <div style="font-size:11px;color:var(--subtle);margin-bottom:8px">
+          Actual price at close: <span style="font-family:var(--mono);color:var(--text)">$${s.actualPrice}</span>
+          ${s.actualPrice && s.entryPriceNum ? `<span style="margin-left:8px;color:${parseFloat(s.actualPrice) > s.entryPriceNum ? 'var(--call)' : 'var(--put)'}">
+            ${parseFloat(s.actualPrice) > s.entryPriceNum ? '+' : ''}${(((parseFloat(s.actualPrice) - s.entryPriceNum) / s.entryPriceNum) * 100).toFixed(1)}%
+          </span>` : ''}
+        </div>` : ''}
+
+      <!-- Action buttons -->
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">
+        <button class="je-btn" onclick="openSignalReview('${s.id}')" style="font-size:10px;color:var(--accent);border-color:rgba(61,126,255,0.3)">✏️ Add Analysis</button>
+        <button class="je-btn" onclick="setSignalOutcome('${s.id}','WIN')" style="font-size:10px;color:var(--call);border-color:rgba(0,214,143,0.3)">✅ Win</button>
+        <button class="je-btn" onclick="setSignalOutcome('${s.id}','LOSS')" style="font-size:10px;color:var(--put);border-color:rgba(255,77,109,0.3)">❌ Loss</button>
+        <button class="je-btn" onclick="setSignalOutcome('${s.id}','EXPIRED')" style="font-size:10px">⏰ Expired</button>
+      </div>
+
       <div class="hist-footer">
         <span>${s.savedAt || ''}</span>
         <span style="color:${isCall?'var(--call)':'var(--put)'}">${s.ticker} ${s.direction}</span>
@@ -2396,6 +2505,125 @@ function renderHistoryPage() {
     `;
     container.appendChild(card);
   });
+}
+
+// ── Signal Review Modal ──
+function openSignalReview(id) {
+  const s = signalHistory.find(x => String(x.id) === String(id));
+  if (!s) return;
+
+  const existing = s.userNotes || '';
+  const actualPrice = s.actualPrice || '';
+
+  const modal = document.createElement('div');
+  modal.id = 'review-modal';
+  modal.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.8);display:flex;align-items:center;justify-content:center;padding:16px';
+  modal.innerHTML = `
+    <div style="background:var(--surface);border:1px solid var(--border2);border-radius:14px;padding:22px;width:100%;max-width:400px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <div style="font-size:14px;font-weight:600">${s.ticker} ${s.strike} ${s.direction} — Your Analysis</div>
+        <button onclick="document.getElementById('review-modal').remove()" style="background:none;border:none;color:var(--muted);font-size:18px;cursor:pointer">✕</button>
+      </div>
+
+      <div class="field-label" style="margin-bottom:5px">Your Analysis / Notes</div>
+      <textarea id="review-notes" class="field-input" rows="4" placeholder="e.g. I agree with the Bear Engulfing signal. AMD has been weak all week and volume confirms the move. I think it could hit $188 by Apr 10..." style="resize:vertical;margin-bottom:14px;font-family:var(--sans)">${existing}</textarea>
+
+      <div class="field-label" style="margin-bottom:5px">Actual Price at Close (optional)</div>
+      <input id="review-actual" class="field-input" type="number" step="0.01" placeholder="e.g. 4.50" value="${actualPrice}" style="margin-bottom:14px">
+
+      <div class="field-label" style="margin-bottom:8px">Outcome</div>
+      <div style="display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap">
+        ${['OPEN','WIN','LOSS','SCRATCH','EXPIRED'].map(o => `
+          <button onclick="selectReviewOutcome('${o}')" id="ro-${o}" class="status-btn ${(s.outcome||'OPEN')===o?'active':''}" style="font-size:11px">${{OPEN:'🟡 Open',WIN:'✅ Win',LOSS:'❌ Loss',SCRATCH:'➖ Scratch',EXPIRED:'⏰ Expired'}[o]}</button>
+        `).join('')}
+      </div>
+
+      <button class="generate-btn" onclick="saveSignalReview('${id}')" style="margin-bottom:8px">💾 Save Analysis</button>
+      <button onclick="aiReviewSignal('${id}')" style="width:100%;padding:9px;border-radius:8px;border:1px solid rgba(61,126,255,0.3);background:rgba(61,126,255,0.06);color:var(--accent);font-family:var(--sans);font-size:12px;cursor:pointer">🤖 Get AI Feedback on My Analysis</button>
+      <div id="review-ai-box" style="display:none;margin-top:10px" class="ai-analysis"></div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+  modal._selectedOutcome = s.outcome || 'OPEN';
+}
+
+function selectReviewOutcome(o) {
+  document.querySelectorAll('[id^="ro-"]').forEach(b => b.classList.remove('active'));
+  const btn = document.getElementById(`ro-${o}`);
+  if (btn) btn.classList.add('active');
+  document.getElementById('review-modal')._selectedOutcome = o;
+}
+
+function saveSignalReview(id) {
+  const idx = signalHistory.findIndex(x => String(x.id) === String(id));
+  if (idx === -1) return;
+  const notes       = document.getElementById('review-notes').value.trim();
+  const actualPrice = document.getElementById('review-actual').value;
+  const outcome     = document.getElementById('review-modal')._selectedOutcome || 'OPEN';
+  const entryStr    = signalHistory[idx].entryPrice || '';
+  const entryNum    = parseFloat(entryStr.replace(/[^0-9.]/g,'')) || 0;
+
+  signalHistory[idx] = { ...signalHistory[idx], userNotes: notes, actualPrice, outcome, entryPriceNum: entryNum };
+  saveSignalHistory();
+  document.getElementById('review-modal').remove();
+  renderHistoryPage();
+}
+
+function setSignalOutcome(id, outcome) {
+  const idx = signalHistory.findIndex(x => String(x.id) === String(id));
+  if (idx === -1) return;
+  signalHistory[idx].outcome = outcome;
+  saveSignalHistory();
+  renderHistoryPage();
+}
+
+async function aiReviewSignal(id) {
+  const s = signalHistory.find(x => String(x.id) === String(id));
+  if (!s) return;
+  const userNotes = document.getElementById('review-notes').value.trim();
+  if (!userNotes) { alert('Write your analysis first, then ask AI to review it.'); return; }
+
+  const box = document.getElementById('review-ai-box');
+  box.style.display = 'block';
+  box.innerHTML = `<div class="analyzing"><div class="spinner" style="width:12px;height:12px;border-width:1.5px"></div> AI is reviewing your analysis...</div>`;
+
+  const prompt = `You are an expert options trading coach. A beginner has written their own analysis of an options signal. Review it and give honest, educational feedback.
+
+Original AI Signal:
+- Ticker: ${s.ticker} ${s.direction} ${s.strike} expiry ${s.expiry}
+- AI Rationale: ${s.rationale}
+- Indicators: RSI ${s.rsi || 'N/A'}, MFI ${s.mfi || 'N/A'}, IV ${s.iv || 'N/A'}, Volume ${s.volume || 'N/A'}
+- AI Confidence: ${s.confidence}%
+
+Beginner's own analysis:
+"${userNotes}"
+
+${s.actualPrice ? `Actual outcome: option closed at $${s.actualPrice}` : ''}
+
+Please:
+1. Was their analysis correct or missing key points?
+2. What did they get right?
+3. What should they have considered?
+4. One key lesson from this trade
+
+Keep it under 5 sentences. Be encouraging but educational.`;
+
+  try {
+    const res = await fetch('/.netlify/functions/signals', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 300, messages: [{ role: 'user', content: prompt }] })
+    });
+    const data = await res.json();
+    const text = data.content?.map(b => b.text || '').join('') || 'Could not get review.';
+    box.innerHTML = `<strong>🤖 AI Feedback:</strong><br>${text}`;
+
+    // Save the AI review to history
+    const idx = signalHistory.findIndex(x => String(x.id) === String(id));
+    if (idx !== -1) { signalHistory[idx].aiReview = text; saveSignalHistory(); }
+  } catch(e) {
+    box.innerHTML = `Could not connect to AI. Try again.`;
+  }
 }
 
 // ── AI Trade Analysis ──
@@ -2476,11 +2704,43 @@ let trades = loadTrades();
 let editingId = null;
 let currentDir = 'CALL';
 let currentStatus = 'OPEN';
+let currentTradeType = 'DID'; // 'DID' or 'WATCHED'
+
+function setTradeType(t) {
+  currentTradeType = t;
+  const didBtn     = document.getElementById('tt-did');
+  const watchedBtn = document.getElementById('tt-watched');
+  const hint       = document.getElementById('tt-hint');
+  if (didBtn && watchedBtn) {
+    if (t === 'DID') {
+      didBtn.classList.add('active');
+      didBtn.style.background = 'rgba(0,214,143,0.1)';
+      didBtn.style.borderColor = 'rgba(0,214,143,0.4)';
+      didBtn.style.color = 'var(--call)';
+      watchedBtn.classList.remove('active');
+      watchedBtn.style.background = '';
+      watchedBtn.style.borderColor = '';
+      watchedBtn.style.color = '';
+      if (hint) hint.textContent = 'P&L will be tracked for this trade';
+    } else {
+      watchedBtn.classList.add('active');
+      watchedBtn.style.background = 'rgba(61,126,255,0.1)';
+      watchedBtn.style.borderColor = 'rgba(61,126,255,0.4)';
+      watchedBtn.style.color = 'var(--accent)';
+      didBtn.classList.remove('active');
+      didBtn.style.background = '';
+      didBtn.style.borderColor = '';
+      didBtn.style.color = '';
+      if (hint) hint.textContent = 'Watching only — no P&L tracked';
+    }
+  }
+}
 
 function openTradeModal(id = null) {
   editingId = id;
   currentDir = 'CALL';
   currentStatus = 'OPEN';
+  currentTradeType = 'DID';
 
   // Reset form
   ['f-ticker','f-strike','f-expiry','f-entry','f-target','f-stop','f-contracts','f-notes']
@@ -2489,6 +2749,7 @@ function openTradeModal(id = null) {
   document.getElementById('dir-call').classList.add('active');
   document.getElementById('dir-put').classList.remove('active');
   setStatus('OPEN');
+  setTradeType('DID');
 
   if (id !== null) {
     const t = trades.find(x => x.id === id);
@@ -2505,6 +2766,7 @@ function openTradeModal(id = null) {
     document.getElementById('f-notes').value     = t.notes || '';
     setDir(t.direction);
     setStatus(t.status);
+    setTradeType(t.tradeType2 || 'DID');
   } else {
     document.getElementById('modal-title').textContent = 'Log Trade';
     document.getElementById('modal-save-text').textContent = 'Save Trade';
@@ -2557,12 +2819,14 @@ function saveTrade() {
     if (idx > -1) {
       trades[idx] = { ...trades[idx], ticker, strike, expiry, entry, target, stop,
         contracts, notes, direction: currentDir, status: currentStatus,
+        tradeType2: currentTradeType,
         updatedAt: `${dateStr} ${timeStr}` };
     }
   } else {
     trades.unshift({
       id: Date.now(), ticker, strike, expiry, entry, target, stop,
       contracts, notes, direction: currentDir, status: currentStatus,
+      tradeType2: currentTradeType,
       createdAt: `${dateStr} ${timeStr}`, updatedAt: null
     });
   }
@@ -2584,6 +2848,7 @@ function statusLabel(s) {
 }
 
 function pnlEstimate(t) {
+  if (t.tradeType2 === 'WATCHED') return ''; // no P&L for watched trades
   if (t.status === 'OPEN' || !t.target || !t.stop) return '';
   const ref = t.status === 'WIN' ? t.target : t.status === 'LOSS' ? t.stop : t.entry;
   const pnl = ((ref - t.entry) * 100 * (t.contracts || 1));
@@ -2596,7 +2861,6 @@ function renderJournal() {
   const empty = document.getElementById('trade-log-empty');
   if (!container) return;
 
-  // Clear dynamic entries (keep empty state)
   container.querySelectorAll('.journal-entry').forEach(e => e.remove());
 
   if (trades.length === 0) {
@@ -2605,11 +2869,31 @@ function renderJournal() {
   }
   if (empty) empty.style.display = 'none';
 
+  // Summary row
+  const didTrades     = trades.filter(t => t.tradeType2 !== 'WATCHED');
+  const watchedTrades = trades.filter(t => t.tradeType2 === 'WATCHED');
+  const totalPnl      = didTrades.reduce((sum, t) => {
+    const p = pnlEstimate(t);
+    return sum + (p ? parseFloat(p.replace(/[^0-9.-]/g,'')) * (p.startsWith('-')?-1:1) : 0);
+  }, 0);
+
+  if (trades.length > 0) {
+    const summary = document.createElement('div');
+    summary.style.cssText = 'display:flex;gap:10px;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;margin-bottom:10px;font-size:11px;flex-wrap:wrap';
+    summary.innerHTML = `
+      <div>✅ Traded: <span style="font-family:var(--mono);color:var(--call)">${didTrades.length}</span></div>
+      <div>👁 Watched: <span style="font-family:var(--mono);color:var(--accent)">${watchedTrades.length}</span></div>
+      <div>P&L: <span style="font-family:var(--mono);color:${totalPnl>=0?'var(--call)':'var(--put)'}">${totalPnl>=0?'+':''}$${Math.abs(totalPnl).toFixed(0)}</span></div>
+    `;
+    container.appendChild(summary);
+  }
+
   trades.forEach(t => {
-    const isCall = t.direction === 'CALL';
+    const isCall      = t.direction === 'CALL';
     const statusClass = { OPEN:'open', WIN:'win', LOSS:'loss', SCRATCH:'scratch' }[t.status] || 'open';
-    const pnl = pnlEstimate(t);
-    const pnlColor = pnl.startsWith('+') ? 'var(--call)' : pnl.startsWith('-') ? 'var(--put)' : 'var(--muted)';
+    const pnl         = pnlEstimate(t);
+    const pnlColor    = pnl.startsWith('+') ? 'var(--call)' : pnl.startsWith('-') ? 'var(--put)' : 'var(--muted)';
+    const isWatched   = t.tradeType2 === 'WATCHED';
 
     const el = document.createElement('div');
     el.className = `journal-entry ${statusClass}`;
@@ -2619,6 +2903,9 @@ function renderJournal() {
           <div class="je-dir ${isCall ? 'call' : 'put'}">${t.direction}</div>
           <div class="je-ticker">${t.ticker} $${t.strike}${isCall ? 'C' : 'P'}</div>
           <div class="je-expiry">${t.expiry}</div>
+          <div style="font-size:9px;padding:1px 5px;border-radius:3px;font-family:var(--mono);${isWatched ? 'background:rgba(61,126,255,0.1);color:var(--accent);border:1px solid rgba(61,126,255,0.3)' : 'background:rgba(0,214,143,0.1);color:var(--call);border:1px solid rgba(0,214,143,0.3)'}">
+            ${isWatched ? '👁 Watch' : '✅ Did it'}
+          </div>
         </div>
         <div class="je-status">${statusLabel(t.status)}${pnl ? ` <span style="color:${pnlColor};font-family:var(--mono)">${pnl}</span>` : ''}</div>
       </div>
@@ -2648,6 +2935,119 @@ document.getElementById('trade-modal').addEventListener('click', function(e) {
 
 // Initial render
 renderJournal();
+
+// ── Market News & Why is it moving ──
+let currentNewsTicker = 'SPY';
+let newsCache = {};
+let newsLastFetch = {};
+const NEWS_INTERVAL = 30 * 60 * 1000; // 30 minutes
+
+async function fetchMarketNews(sym) {
+  sym = sym || currentNewsTicker;
+  currentNewsTicker = sym;
+
+  const container = document.getElementById('news-container');
+  const lastUpdEl = document.getElementById('news-last-updated');
+  if (!container) return;
+
+  // Check cache — don't re-fetch within 30 mins
+  const now = Date.now();
+  if (newsCache[sym] && (now - (newsLastFetch[sym] || 0)) < NEWS_INTERVAL) {
+    renderNews(newsCache[sym], sym);
+    return;
+  }
+
+  container.innerHTML = `<div style="display:flex;align-items:center;gap:6px;padding:8px 4px;font-size:11px;color:var(--muted)"><div class="spinner" style="width:12px;height:12px;border-width:1.5px"></div> Analyzing ${sym} news...</div>`;
+
+  const price   = prices[sym] > 0 ? `$${prices[sym].toFixed(2)}` : 'current price';
+  const prev    = prevClose[sym] > 0 ? `$${prevClose[sym].toFixed(2)}` : 'previous close';
+  const chgPct  = prices[sym] > 0 && prevClose[sym] > 0
+    ? (((prices[sym] - prevClose[sym]) / prevClose[sym]) * 100).toFixed(2)
+    : null;
+  const chgStr  = chgPct ? `${parseFloat(chgPct) >= 0 ? '+' : ''}${chgPct}%` : 'unknown change';
+  const cd      = candleData[sym] || {};
+  const today   = new Date().toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric', year:'numeric' });
+
+  const prompt = `You are a financial news analyst. Today is ${today}.
+
+${sym} is currently at ${price} (${chgStr} today from ${prev}).
+${cd.candleBias ? `Candle bias: ${cd.candleBias}` : ''}
+${cd.rsi ? `RSI: ${cd.rsi}` : ''}
+${cd.volume ? `Volume: ${cd.volume}` : ''}
+${cd.patterns && cd.patterns.length > 0 ? `Patterns: ${cd.patterns.map(p=>p.name).join(', ')}` : ''}
+
+Based on your knowledge of recent market events, news, and conditions up to your knowledge cutoff:
+1. What are the most likely reasons ${sym} is ${parseFloat(chgPct||0) >= 0 ? 'rising' : 'falling'} today?
+2. What key news, events, or macro factors are affecting it?
+3. What should a beginner options trader watch for next?
+
+Respond ONLY with a JSON object like this (no markdown, no extra text):
+{
+  "move": "${parseFloat(chgPct||0) >= 0 ? 'UP' : 'DOWN'}",
+  "change": "${chgStr}",
+  "mainReason": "1-2 sentence simple explanation of the main driver",
+  "headlines": ["Key factor 1", "Key factor 2", "Key factor 3"],
+  "watchFor": "One thing to watch next",
+  "sentiment": "BULLISH" or "BEARISH" or "NEUTRAL"
+}`;
+
+  try {
+    const res = await fetch('/.netlify/functions/signals', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 400,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+    const data = await res.json();
+    const raw  = data.content?.map(b => b.text || '').join('') || '';
+    const clean = raw.replace(/```json|```/g, '').trim();
+    const news = JSON.parse(clean);
+
+    newsCache[sym]      = news;
+    newsLastFetch[sym]  = now;
+    renderNews(news, sym);
+
+    if (lastUpdEl) {
+      const t = new Date().toLocaleTimeString('en-US', { hour:'2-digit', minute:'2-digit' });
+      lastUpdEl.textContent = `Updated ${t} · refreshes every 30m`;
+    }
+
+  } catch(e) {
+    container.innerHTML = `<div style="font-size:11px;color:var(--muted);padding:8px 4px">Could not load news analysis. Check connection.</div>`;
+  }
+}
+
+function renderNews(news, sym) {
+  const container = document.getElementById('news-container');
+  if (!container || !news) return;
+
+  const isUp   = news.move === 'UP';
+  const sentColor = news.sentiment === 'BULLISH' ? 'var(--call)' : news.sentiment === 'BEARISH' ? 'var(--put)' : 'var(--neutral)';
+
+  container.innerHTML = `
+    <div class="news-card">
+      <div class="news-move">
+        <span class="news-ticker-label">${sym}</span>
+        <span class="news-move-badge ${isUp ? 'up' : 'down'}">${isUp ? '▲' : '▼'} ${news.change}</span>
+      </div>
+      <div class="news-reason">${news.mainReason}</div>
+      ${(news.headlines || []).map(h => `<div class="news-headline">• ${h}</div>`).join('')}
+      ${news.watchFor ? `<div style="margin-top:8px;padding:7px 9px;background:rgba(240,180,41,0.08);border:1px solid rgba(240,180,41,0.2);border-radius:5px;font-size:11px;color:var(--neutral)">👀 Watch: ${news.watchFor}</div>` : ''}
+      <div class="news-sentiment" style="color:${sentColor};margin-top:6px">Sentiment: ${news.sentiment}</div>
+    </div>
+  `;
+}
+
+// Auto-refresh news every 30 mins
+setInterval(() => {
+  if (currentNewsTicker) {
+    newsLastFetch[currentNewsTicker] = 0; // force refresh
+    fetchMarketNews(currentNewsTicker);
+  }
+}, NEWS_INTERVAL);
 
 // ── PDT Tracker ──
 let pdtUsed = 0;
@@ -2748,6 +3148,111 @@ function checkFridayClose() {
 // Check every minute
 setInterval(checkFridayClose, 60000);
 checkFridayClose(); // run on load too
+
+// ── Monthly Report ──
+async function generateMonthlyReport() {
+  const now       = new Date();
+  const monthName = now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
+  const thisMonth = trades.filter(t => {
+    const d = new Date((t.createdAt || t.updatedAt || '').replace(/(\d+)\/(\d+)\/(\d+)/, '20$3-$1-$2'));
+    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+  });
+
+  const didTrades     = thisMonth.filter(t => t.tradeType2 !== 'WATCHED');
+  const watchedTrades = thisMonth.filter(t => t.tradeType2 === 'WATCHED');
+  const wins          = didTrades.filter(t => t.status === 'WIN');
+  const losses        = didTrades.filter(t => t.status === 'LOSS');
+  const totalPnl      = didTrades.reduce((sum, t) => {
+    const p = pnlEstimate(t); if (!p) return sum;
+    const num = parseFloat(p.replace(/[^0-9.]/g,''));
+    return sum + (p.startsWith('-') ? -num : num);
+  }, 0);
+  const monthSignals = signalHistory.length;
+
+  const reportPrompt = `Generate a monthly trading report for a beginner paper trader.
+Month: ${monthName}
+Executed trades: ${didTrades.length} (${wins.length} wins, ${losses.length} losses)
+Watched trades: ${watchedTrades.length}
+Win rate: ${didTrades.length > 0 ? Math.round((wins.length/didTrades.length)*100) : 0}%
+Total P&L: ${totalPnl >= 0 ? '+' : ''}$${totalPnl.toFixed(0)}
+AI signals generated: ${monthSignals}
+Trades: ${didTrades.map(t=>`${t.direction} ${t.ticker} ${t.status}`).join(', ') || 'none'}
+
+Write a friendly monthly summary with: performance overview, what went well, what to improve, one key lesson, and a goal for next month. Keep it concise and beginner-friendly.`;
+
+  const modal = document.createElement('div');
+  modal.id = 'report-modal';
+  modal.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.85);display:flex;align-items:center;justify-content:center;padding:16px';
+  modal.innerHTML = `
+    <div style="background:var(--surface);border:1px solid var(--border2);border-radius:14px;padding:22px;width:100%;max-width:420px;max-height:85vh;overflow-y:auto">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <div style="font-size:14px;font-weight:600">📊 ${monthName} Report</div>
+        <button onclick="document.getElementById('report-modal').remove()" style="background:none;border:none;color:var(--muted);font-size:18px;cursor:pointer">✕</button>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px">
+        <div style="text-align:center;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px">
+          <div style="font-family:var(--mono);font-size:18px;font-weight:600;color:var(--call)">${didTrades.length}</div>
+          <div style="font-size:10px;color:var(--muted)">Executed</div>
+        </div>
+        <div style="text-align:center;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px">
+          <div style="font-family:var(--mono);font-size:18px;font-weight:600;color:var(--accent)">${watchedTrades.length}</div>
+          <div style="font-size:10px;color:var(--muted)">Watched</div>
+        </div>
+        <div style="text-align:center;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px">
+          <div style="font-family:var(--mono);font-size:18px;font-weight:600;color:${totalPnl>=0?'var(--call)':'var(--put)'}">${totalPnl>=0?'+':''}$${Math.abs(totalPnl).toFixed(0)}</div>
+          <div style="font-size:10px;color:var(--muted)">Paper P&L</div>
+        </div>
+      </div>
+      <div style="margin-bottom:12px">
+        <div style="font-size:10px;font-weight:600;letter-spacing:0.1em;color:var(--muted);margin-bottom:8px">✅ EXECUTED</div>
+        ${didTrades.length === 0 ? '<div style="font-size:12px;color:var(--muted)">No executed trades this month</div>' :
+          didTrades.map(t => { const p=pnlEstimate(t); return `<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border);font-size:11px"><span style="font-family:var(--mono)">${t.ticker} $${t.strike}${t.direction==='CALL'?'C':'P'} ${t.expiry}</span><span style="color:${p&&p.startsWith('+')?'var(--call)':p&&p.startsWith('-')?'var(--put)':'var(--muted)'};font-family:var(--mono)">${p||t.status}</span></div>`; }).join('')}
+      </div>
+      <div style="margin-bottom:12px">
+        <div style="font-size:10px;font-weight:600;letter-spacing:0.1em;color:var(--muted);margin-bottom:8px">👁 WATCHED</div>
+        ${watchedTrades.length === 0 ? '<div style="font-size:12px;color:var(--muted)">No watched trades this month</div>' :
+          watchedTrades.map(t => `<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border);font-size:11px"><span style="font-family:var(--mono)">${t.ticker} $${t.strike}${t.direction==='CALL'?'C':'P'} ${t.expiry}</span><span style="color:var(--muted)">${t.status}</span></div>`).join('')}
+      </div>
+      <div id="report-ai-content" class="ai-analysis">
+        <div class="analyzing"><div class="spinner" style="width:12px;height:12px;border-width:1.5px"></div> Generating AI summary...</div>
+      </div>
+      <div style="margin-top:14px">
+        <div style="font-size:11px;color:var(--muted);margin-bottom:6px">📧 Email this report:</div>
+        <div style="display:flex;gap:8px">
+          <input id="report-email" class="field-input" type="email" placeholder="your@email.com" style="flex:1">
+          <button onclick="sendReportEmail('${monthName}',${totalPnl.toFixed(0)},${didTrades.length},${watchedTrades.length})" style="padding:8px 14px;background:var(--accent);border:none;border-radius:6px;color:white;font-size:12px;cursor:pointer">Send</button>
+        </div>
+        <div id="email-status" style="font-size:11px;color:var(--muted);margin-top:5px"></div>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+
+  try {
+    const res  = await fetch('/.netlify/functions/signals', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ model:'claude-sonnet-4-20250514', max_tokens:400, messages:[{role:'user',content:reportPrompt}] }) });
+    const data = await res.json();
+    const text = data.content?.map(b=>b.text||'').join('') || 'Could not generate report.';
+    const box  = document.getElementById('report-ai-content');
+    if (box) box.innerHTML = `<strong>🤖 AI Monthly Summary:</strong><br><br>${text}`;
+  } catch(e) {
+    const box = document.getElementById('report-ai-content');
+    if (box) box.innerHTML = 'Could not generate summary.';
+  }
+}
+
+function sendReportEmail(monthName, pnl, executed, watched) {
+  const email  = document.getElementById('report-email').value.trim();
+  const status = document.getElementById('email-status');
+  if (!email || !email.includes('@')) { if(status) status.textContent = 'Enter a valid email.'; return; }
+
+  const didList = trades.filter(t=>t.tradeType2!=='WATCHED').map(t=>`• ${t.direction} ${t.ticker} $${t.strike} ${t.expiry} — ${t.status} ${pnlEstimate(t)||''}`).join('\n');
+  const watchList = trades.filter(t=>t.tradeType2==='WATCHED').map(t=>`• ${t.direction} ${t.ticker} $${t.strike} ${t.expiry} — ${t.status}`).join('\n');
+
+  const subject = encodeURIComponent(`OptionPulse Report — ${monthName}`);
+  const body    = encodeURIComponent(`OptionPulse Monthly Report — ${monthName}\n\nEXECUTED TRADES (${executed}):\n${didList||'None'}\n\nWATCHED TRADES (${watched}):\n${watchList||'None'}\n\nTOTAL PAPER P&L: ${pnl>=0?'+':''}$${Math.abs(pnl).toFixed(0)}\n\n— optionpulse.netlify.app`);
+  window.location.href = `mailto:${email}?subject=${subject}&body=${body}`;
+  if (status) status.textContent = '✅ Opening email app...';
+}
 
 // Initial PDT render
 renderPDT();
