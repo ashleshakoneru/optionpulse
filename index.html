@@ -1289,7 +1289,100 @@
   .signal-card.just-updated {
     animation: flashBorder 1.2s ease forwards, fadeUp 0.35s ease both;
   }
-</style>
+
+  /* ── Light Mode ── */
+  body.light-mode {
+    --bg: #f5f6fa;
+    --surface: #ffffff;
+    --surface2: #eef0f5;
+    --border: #e0e4ed;
+    --border2: #d0d5e3;
+    --text: #1a1d2e;
+    --muted: #9098b1;
+    --subtle: #5a6478;
+  }
+  body.light-mode header {
+    background: rgba(245,246,250,0.95);
+    border-bottom-color: var(--border);
+  }
+  body.light-mode .pdt-banner {
+    background: rgba(240,180,41,0.06);
+  }
+  body.light-mode .signal-card,
+  body.light-mode .auto-refresh-box,
+  body.light-mode .risk-meter,
+  body.light-mode .journal-entry,
+  body.light-mode .hist-card,
+  body.light-mode .news-card {
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  }
+
+  /* ── Market Countdown Banner ── */
+  .market-countdown {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 8px 20px;
+    font-family: var(--mono);
+    font-size: 12px;
+    border-bottom: 1px solid var(--border);
+    transition: all 0.3s;
+  }
+  .market-countdown.pre-market  { background: rgba(240,180,41,0.08); color: var(--neutral); border-color: rgba(240,180,41,0.2); }
+  .market-countdown.open        { background: rgba(0,214,143,0.06);  color: var(--call);    border-color: rgba(0,214,143,0.15); }
+  .market-countdown.after-hours { background: rgba(61,126,255,0.06); color: var(--accent);  border-color: rgba(61,126,255,0.15); }
+  .market-countdown.closed      { background: rgba(90,100,120,0.06); color: var(--muted);   border-color: var(--border); }
+  .mkt-timer { font-size: 14px; font-weight: 700; letter-spacing: 0.05em; }
+
+  /* ── Daily Lesson ── */
+  .lesson-card {
+    background: linear-gradient(135deg, rgba(61,126,255,0.08), rgba(0,214,143,0.05));
+    border: 1px solid rgba(61,126,255,0.2);
+    border-radius: 10px;
+    padding: 14px 16px;
+    margin-bottom: 16px;
+  }
+  .lesson-title {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 6px;
+  }
+  .lesson-heading {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 8px;
+  }
+  .lesson-body {
+    font-size: 12.5px;
+    color: var(--subtle);
+    line-height: 1.6;
+  }
+  .lesson-nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--border);
+  }
+  .lesson-btn {
+    font-family: var(--mono);
+    font-size: 10px;
+    padding: 4px 10px;
+    border-radius: 5px;
+    border: 1px solid var(--border2);
+    background: none;
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .lesson-btn:hover { color: var(--text); border-color: var(--subtle); }
+  .lesson-counter { font-family: var(--mono); font-size: 10px; color: var(--muted); }</style>
 </head>
 <body>
 <div class="app">
@@ -1301,6 +1394,7 @@
     OPTIONPULSE
   </div>
   <div class="header-right">
+    <button onclick="toggleTheme()" id="theme-btn" style="background:none;border:1px solid var(--border2);border-radius:6px;padding:4px 8px;cursor:pointer;font-size:14px;color:var(--muted);transition:all 0.2s" title="Toggle light/dark mode">🌙</button>
     <div class="live-badge">
       <div class="live-dot"></div>
       PAPER TRADING MODE
@@ -1308,6 +1402,13 @@
     <div class="clock" id="clock">--:-- --</div>
   </div>
 </header>
+
+<!-- Market Countdown Banner -->
+<div class="market-countdown closed" id="market-countdown">
+  <span id="mkt-status-label">⏰ Market Status</span>
+  <span class="mkt-timer" id="mkt-timer">--:--:--</span>
+  <span id="mkt-next-label"></span>
+</div>
 
 <!-- PDT Banner -->
 <div class="pdt-banner" id="pdt-banner">
@@ -1452,6 +1553,18 @@
 
   <!-- Content -->
   <div class="content mob-active" id="main-content">
+
+    <!-- Daily Lesson -->
+    <div class="lesson-card" id="daily-lesson">
+      <div class="lesson-title">📚 Daily Options Lesson</div>
+      <div class="lesson-heading" id="lesson-heading">Loading today's lesson...</div>
+      <div class="lesson-body" id="lesson-body"></div>
+      <div class="lesson-nav">
+        <button class="lesson-btn" onclick="prevLesson()">← Prev</button>
+        <span class="lesson-counter" id="lesson-counter"></span>
+        <button class="lesson-btn" onclick="nextLesson()">Next →</button>
+      </div>
+    </div>
 
     <!-- AI Status Bar -->
     <div class="ai-status">
@@ -1797,7 +1910,202 @@ function updateClock() {
 setInterval(updateClock, 1000);
 updateClock();
 
-// ── Ticker selection ──
+// ── Theme Toggle ──
+function toggleTheme() {
+  const isLight = document.body.classList.toggle('light-mode');
+  const btn = document.getElementById('theme-btn');
+  if (btn) btn.textContent = isLight ? '☀️' : '🌙';
+  try { localStorage.setItem('op_theme', isLight ? 'light' : 'dark'); } catch(e) {}
+}
+function loadTheme() {
+  try {
+    const t = localStorage.getItem('op_theme');
+    if (t === 'light') {
+      document.body.classList.add('light-mode');
+      const btn = document.getElementById('theme-btn');
+      if (btn) btn.textContent = '☀️';
+    }
+  } catch(e) {}
+}
+loadTheme();
+
+// ── Market Countdown ──
+function updateMarketCountdown() {
+  const now = new Date();
+  // Convert to ET
+  const etOffset = now.toLocaleString('en-US', { timeZone: 'America/New_York', hour:'numeric', hour12:false });
+  const etNow = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }));
+  const h = etNow.getHours(), m = etNow.getMinutes(), s = etNow.getSeconds(), day = etNow.getDay();
+
+  const banner  = document.getElementById('market-countdown');
+  const timerEl = document.getElementById('mkt-timer');
+  const statusEl = document.getElementById('mkt-status-label');
+  const nextEl  = document.getElementById('mkt-next-label');
+  if (!banner || !timerEl) return;
+
+  const totalSecs = h * 3600 + m * 60 + s;
+  const preOpen   = 4 * 3600;       // 4:00 AM ET
+  const mktOpen   = 9 * 3600 + 30 * 60;  // 9:30 AM ET
+  const mktClose  = 16 * 3600;      // 4:00 PM ET
+  const afterEnd  = 20 * 3600;      // 8:00 PM ET
+
+  const isWeekend = day === 0 || day === 6;
+
+  let phase, secsLeft, label, nextLabel;
+
+  if (isWeekend) {
+    phase = 'closed';
+    label = '🔴 Weekend — Market Closed';
+    const daysLeft = day === 6 ? 2 : 1;
+    timerEl.textContent = `${daysLeft}d until Monday`;
+    nextLabel = '';
+  } else if (totalSecs < preOpen) {
+    phase = 'closed';
+    secsLeft = preOpen - totalSecs;
+    label = '🔴 Closed — Pre-market opens in';
+    nextLabel = 'at 4:00 AM ET';
+  } else if (totalSecs < mktOpen) {
+    phase = 'pre-market';
+    secsLeft = mktOpen - totalSecs;
+    label = '🟡 Pre-Market — Opens in';
+    nextLabel = 'at 9:30 AM ET';
+  } else if (totalSecs < mktClose) {
+    phase = 'open';
+    secsLeft = mktClose - totalSecs;
+    label = '🟢 Market OPEN — Closes in';
+    nextLabel = 'at 4:00 PM ET';
+  } else if (totalSecs < afterEnd) {
+    phase = 'after-hours';
+    secsLeft = afterEnd - totalSecs;
+    label = '🔵 After-Hours — Ends in';
+    nextLabel = 'at 8:00 PM ET';
+  } else {
+    phase = 'closed';
+    secsLeft = (24 * 3600 - totalSecs) + preOpen;
+    label = '🔴 Closed — Pre-market opens in';
+    nextLabel = 'tomorrow 4:00 AM ET';
+  }
+
+  banner.className = `market-countdown ${phase}`;
+  statusEl.textContent = label;
+  if (nextEl) nextEl.textContent = nextLabel || '';
+
+  if (secsLeft && !isWeekend) {
+    const hh = Math.floor(secsLeft / 3600).toString().padStart(2,'0');
+    const mm = Math.floor((secsLeft % 3600) / 60).toString().padStart(2,'0');
+    const ss = (secsLeft % 60).toString().padStart(2,'0');
+    timerEl.textContent = `${hh}:${mm}:${ss}`;
+  }
+}
+setInterval(updateMarketCountdown, 1000);
+updateMarketCountdown();
+
+// ── Daily Options Lessons ──
+const LESSONS = [
+  {
+    heading: 'What is a Call Option?',
+    body: 'A CALL option gives you the RIGHT to BUY 100 shares at the strike price before expiry. You buy a call when you think the stock will go UP. If SPY is at $630 and you buy a $635 Call, you profit if SPY rises above $635 before your expiry date. Your max loss is what you paid for the option.'
+  },
+  {
+    heading: 'What is a Put Option?',
+    body: 'A PUT option gives you the RIGHT to SELL 100 shares at the strike price before expiry. You buy a put when you think the stock will go DOWN. If AMD is at $196 and you buy a $190 Put, you profit if AMD falls below $190. Think of it like insurance — you\'re betting the stock drops.'
+  },
+  {
+    heading: 'What is Strike Price?',
+    body: 'The strike price is the price at which your option can be exercised. Always choose a strike close to the current stock price (within 5-10%). A $635 Call on SPY at $632 is slightly "Out of The Money" (OTM) — the stock needs to move up for you to profit. Too far OTM = lottery ticket.'
+  },
+  {
+    heading: 'What is IV (Implied Volatility)?',
+    body: 'IV measures how expensive an option is. High IV (>60%) = expensive options, risky. Low IV (<30%) = cheap options, good time to buy. Think of IV like insurance premiums — when there\'s more uncertainty (storms coming), insurance costs more. NVDA near earnings always has high IV. Buy low IV when possible.'
+  },
+  {
+    heading: 'What is Theta (Time Decay)?',
+    body: 'Theta is the enemy of option buyers. Every single day, your option loses a little value just from time passing — even if the stock doesn\'t move. A Theta of -0.17 means you lose $17 per day per contract. This is why you never hold options too long. Swing trades (2-5 days) limit Theta damage.'
+  },
+  {
+    heading: 'What is Delta?',
+    body: 'Delta tells you how much your option moves when the stock moves $1. A Delta of 0.40 means if SPY goes up $1, your option gains $0.40 (or $40 per contract). Calls have positive delta (profit when stock rises). Puts have negative delta (profit when stock falls). Higher delta = option moves more with the stock.'
+  },
+  {
+    heading: 'What is the PDT Rule?',
+    body: 'The Pattern Day Trader rule says: if your account is under $25,000, you can only make 3 Day Trades per 5-business-day period. A day trade = buying AND selling the same option on the same day. Swing trades (holding overnight) don\'t count. This dashboard tracks your PDT usage automatically.'
+  },
+  {
+    heading: 'What is RSI?',
+    body: 'RSI (Relative Strength Index) measures if a stock is overbought or oversold on a scale of 0-100. RSI above 70 = overbought (might drop soon). RSI below 30 = oversold (might bounce soon). RSI 40-60 = neutral. The dashboard shows RSI on every signal — look for it to confirm your trade direction.'
+  },
+  {
+    heading: 'What is MFI (Money Flow Index)?',
+    body: 'MFI is like RSI but includes volume. It shows whether BIG money is buying or selling. MFI above 60 = strong buying (bullish). MFI below 40 = strong selling (bearish). MFI 40-60 = neutral. When MFI and RSI agree, the signal is stronger. This dashboard shows MFI on every signal card.'
+  },
+  {
+    heading: 'What is a Swing Trade?',
+    body: 'A swing trade holds an option for 2-7 days, waiting for a bigger price move. It\'s better for beginners than day trading because you have more time to be right, you\'re not glued to the screen all day, and it doesn\'t count toward your PDT limit. Most signals on this dashboard are swing trades.'
+  },
+  {
+    heading: 'What is Expiry Date?',
+    body: 'Options expire on specific dates — mostly Fridays. After expiry, the option becomes worthless if it hasn\'t moved in your favor. Always pick an expiry date at least 7-14 days out as a beginner. Too close (2-3 days) = high risk, Theta kills you fast. Too far out (months) = expensive. 1-2 weeks is the sweet spot.'
+  },
+  {
+    heading: 'What is a Bearish/Bullish Engulfing Pattern?',
+    body: 'Candlestick patterns show you market psychology. A Bullish Engulfing = a big green candle completely covers the previous red candle — buyers overwhelmed sellers, potential bounce coming. A Bearish Engulfing = big red candle covers previous green candle — sellers took over, potential drop coming. These are strong reversal signals.'
+  },
+  {
+    heading: 'What is Paper Trading?',
+    body: 'Paper trading = practicing with fake money but real market prices. It\'s exactly what you\'re doing right now on OptionPulse! The goal is to learn the mechanics, test your strategy, and build confidence before risking real money. Rule of thumb: paper trade for at least 30 days and get consistent results before going live.'
+  },
+  {
+    heading: 'What is Risk/Reward Ratio?',
+    body: 'Always compare how much you could lose vs how much you could gain. A good ratio is at least 1:2 — risk $100 to potentially make $200. If your entry is $2.65, your stop should be around $1.85 (lose $80) and your target around $4.20 (gain $155). Never risk more than you can afford to lose on a single trade.'
+  },
+  {
+    heading: 'What is Open Interest?',
+    body: 'Open Interest is the total number of option contracts that exist for a particular strike and expiry. High open interest (>1000) = lots of traders interested, easy to buy and sell. Low open interest (<100) = hard to exit your position, wide bid/ask spread. Always prefer options with high open interest as a beginner.'
+  }
+];
+
+let currentLesson = 0;
+
+function loadLessonIndex() {
+  try {
+    const today = new Date().toDateString();
+    const saved = localStorage.getItem('op_lesson_date');
+    if (saved !== today) {
+      // New day — advance to next lesson
+      let idx = parseInt(localStorage.getItem('op_lesson_idx') || '0');
+      idx = (idx + 1) % LESSONS.length;
+      localStorage.setItem('op_lesson_idx', idx);
+      localStorage.setItem('op_lesson_date', today);
+      currentLesson = idx;
+    } else {
+      currentLesson = parseInt(localStorage.getItem('op_lesson_idx') || '0');
+    }
+  } catch(e) { currentLesson = 0; }
+  renderLesson();
+}
+
+function renderLesson() {
+  const l = LESSONS[currentLesson];
+  const h = document.getElementById('lesson-heading');
+  const b = document.getElementById('lesson-body');
+  const c = document.getElementById('lesson-counter');
+  if (h) h.textContent = l.heading;
+  if (b) b.textContent = l.body;
+  if (c) c.textContent = `${currentLesson + 1} / ${LESSONS.length}`;
+  try { localStorage.setItem('op_lesson_idx', currentLesson); } catch(e) {}
+}
+
+function nextLesson() {
+  currentLesson = (currentLesson + 1) % LESSONS.length;
+  renderLesson();
+}
+
+function prevLesson() {
+  currentLesson = (currentLesson - 1 + LESSONS.length) % LESSONS.length;
+  renderLesson();
+}
+
+loadLessonIndex();
 function selectTicker(el, sym) {
   document.querySelectorAll('.ticker-card').forEach(c => c.classList.remove('active'));
   el.classList.add('active');
