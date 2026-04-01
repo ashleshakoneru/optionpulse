@@ -189,22 +189,27 @@
     display: none;
     background: var(--surface);
     border-bottom: 1px solid var(--border);
-    padding: 0 16px;
+    padding: 0;
     gap: 0;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
   }
+  .mobile-tabs::-webkit-scrollbar { display: none; }
 
   .mob-tab {
-    flex: 1;
-    padding: 11px 8px;
+    flex: 0 0 auto;
+    padding: 9px 13px;
     font-family: var(--mono);
-    font-size: 11px;
+    font-size: 9.5px;
     font-weight: 600;
     color: var(--muted);
     text-align: center;
     cursor: pointer;
     border-bottom: 2px solid transparent;
     transition: all 0.15s;
-    letter-spacing: 0.05em;
+    letter-spacing: 0.03em;
+    white-space: nowrap;
   }
 
   .mob-tab.active {
@@ -217,6 +222,12 @@
     .pdt-trades { margin-left: 0; width: 100%; }
 
     .mobile-tabs { display: flex; }
+
+    header { padding: 10px 14px; }
+    .logo { font-size: 13px; }
+    .logo-icon { width: 24px; height: 24px; font-size: 12px; }
+    .live-badge { font-size: 9px; padding: 3px 8px; }
+    .clock { display: none; }
 
     .main {
       grid-template-columns: 1fr;
@@ -1321,11 +1332,11 @@
   .market-countdown {
     display: flex;
     align-items: center;
-    justify-content: center;
-    gap: 10px;
-    padding: 8px 20px;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 6px 14px;
     font-family: var(--mono);
-    font-size: 12px;
+    font-size: 10.5px;
     border-bottom: 1px solid var(--border);
     transition: all 0.3s;
   }
@@ -1333,7 +1344,9 @@
   .market-countdown.open        { background: rgba(0,214,143,0.06);  color: var(--call);    border-color: rgba(0,214,143,0.15); }
   .market-countdown.after-hours { background: rgba(61,126,255,0.06); color: var(--accent);  border-color: rgba(61,126,255,0.15); }
   .market-countdown.closed      { background: rgba(90,100,120,0.06); color: var(--muted);   border-color: var(--border); }
-  .mkt-timer { font-size: 14px; font-weight: 700; letter-spacing: 0.05em; }
+  .mkt-timer { font-size: 12px; font-weight: 700; letter-spacing: 0.05em; flex-shrink: 0; }
+  #mkt-status-label { flex: 1; font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #mkt-next-label { font-size: 9px; flex-shrink: 0; opacity: 0.7; white-space: nowrap; }
 
   /* ── Daily Lesson ── */
   .lesson-card {
@@ -1429,11 +1442,11 @@
 
 <!-- Mobile Tabs -->
 <div class="mobile-tabs">
-  <div class="mob-tab" id="tab-watch" onclick="switchTab('watch')">📊 PRICES</div>
-  <div class="mob-tab active" id="tab-signals" onclick="switchTab('signals')">⚡ SIGNALS</div>
-  <div class="mob-tab" id="tab-intel" onclick="switchTab('intel')">📡 INTEL</div>
-  <div class="mob-tab" id="tab-history" onclick="switchTab('history')">📜 HISTORY</div>
-  <div class="mob-tab" id="tab-journal" onclick="switchTab('journal')">📓 JOURNAL</div>
+  <div class="mob-tab" id="tab-watch" onclick="switchTab('watch')">📊 Prices</div>
+  <div class="mob-tab active" id="tab-signals" onclick="switchTab('signals')">⚡ Signals</div>
+  <div class="mob-tab" id="tab-intel" onclick="switchTab('intel')">📡 Intel</div>
+  <div class="mob-tab" id="tab-history" onclick="switchTab('history')">📜 History</div>
+  <div class="mob-tab" id="tab-journal" onclick="switchTab('journal')">📓 Journal</div>
 </div>
 
 <!-- Main -->
@@ -1997,43 +2010,48 @@ async function fetchTrumpWatch(manual = false) {
   const today = new Date().toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric', year:'numeric' });
   const currentPrices = TICKERS.filter(s => prices[s] > 0).map(s => `${s}: $${prices[s].toFixed(2)}`).join(', ');
 
-  const prompt = `You are a financial analyst monitoring Donald Trump's statements for market impact. Today is ${today}.
+  const prompt = `Search the web for the latest Trump news from today and this week that could affect the stock market.
 
+Search for: "Trump market" OR "Trump tariffs" OR "Trump stocks" OR "Trump economy" site:reuters.com OR site:bloomberg.com OR site:cnbc.com
+
+Today is ${today}.
 Current stock prices: ${currentPrices || 'unavailable'}
 Watchlist: SPY, QQQ, NVDA, AMD, PLTR
 
-Based on your knowledge of recent Trump statements, Truth Social posts, executive orders, tariff announcements, trade policy, and other market-moving actions up to your knowledge cutoff:
-
-What are the most recent and significant Trump-related developments that could affect the stock market and options trading?
-
-Respond ONLY with a JSON object (no markdown):
+After searching, analyze the results and respond ONLY with a JSON object (no markdown):
 {
   "lastUpdated": "${today}",
   "overallSentiment": "BULLISH" or "BEARISH" or "VOLATILE" or "NEUTRAL",
   "marketAlert": "HIGH" or "MEDIUM" or "LOW",
   "statements": [
     {
-      "source": "Truth Social" or "Executive Order" or "Press Conference" or "Tweet" or "Policy Announcement",
-      "content": "Brief summary of what Trump said or did",
+      "source": "Reuters" or "CNBC" or "Bloomberg" or "Truth Social" or "White House" etc,
+      "content": "Brief summary of what happened",
       "marketImpact": "BULLISH" or "BEARISH" or "VOLATILE" or "NEUTRAL",
       "affectedStocks": ["SPY", "NVDA"],
       "traderAction": "One sentence on what options traders should consider"
     }
   ],
   "bottomLine": "2-sentence summary of overall Trump market impact right now",
-  "optionsStrategy": "Specific advice for options traders this week given Trump's current stance"
+  "optionsStrategy": "Specific advice for options traders this week given current Trump news"
 }
 
-Include 2-4 most relevant recent statements/events. Focus on tariffs, trade war, tech policy, AI regulation, Fed policy comments, executive orders that affect markets.`;
+Include 2-4 most relevant recent developments. Focus on tariffs, trade war, tech policy, AI regulation, executive orders that affect markets.`;
 
   try {
-    const res  = await fetch('/.netlify/functions/signals', {
+    const res = await fetch('/.netlify/functions/signals', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 700, messages: [{ role: 'user', content: prompt }] })
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 2000,
+        _trumpWatch: true,
+        messages: [{ role: 'user', content: prompt }]
+      })
     });
     const data = await res.json();
-    const raw  = data.content?.map(b => b.text || '').join('') || '';
+    // Use extracted text or fall back to content array
+    const raw = data._extractedText || (data.content?.map(b => b.text || '').join('') || '');
     const clean = raw.replace(/```json|```/g, '').trim();
     const trump = JSON.parse(clean);
     trumpLastFetch = Date.now();
@@ -2143,10 +2161,10 @@ Analyze this news and respond ONLY with a JSON object (no markdown):
     const res  = await fetch('/.netlify/functions/signals', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 600, messages: [{ role: 'user', content: prompt }] })
+      body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 600, _newsSearch: true, messages: [{ role: 'user', content: prompt }] })
     });
     const data = await res.json();
-    const raw  = data.content?.map(b => b.text || '').join('') || '';
+    const raw  = data._extractedText || data.content?.map(b => b.text || '').join('') || '';
     const clean = raw.replace(/```json|```/g, '').trim();
     const analysis = JSON.parse(clean);
     renderNewsImpact(analysis);
