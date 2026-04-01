@@ -1431,6 +1431,7 @@
 <div class="mobile-tabs">
   <div class="mob-tab" id="tab-watch" onclick="switchTab('watch')">📊 PRICES</div>
   <div class="mob-tab active" id="tab-signals" onclick="switchTab('signals')">⚡ SIGNALS</div>
+  <div class="mob-tab" id="tab-intel" onclick="switchTab('intel')">📡 INTEL</div>
   <div class="mob-tab" id="tab-history" onclick="switchTab('history')">📜 HISTORY</div>
   <div class="mob-tab" id="tab-journal" onclick="switchTab('journal')">📓 JOURNAL</div>
 </div>
@@ -1550,20 +1551,9 @@
       </div>
     </div>
 
-    <!-- News Impact Analyzer -->
-    <div class="sidebar-section">
-      <div class="sidebar-label">📰 News Impact Analyzer</div>
-      <div style="font-size:11px;color:var(--muted);margin-bottom:8px;line-height:1.4">
-        Saw something in the news? Paste it here and AI will tell you how it affects your stocks.
-      </div>
-      <textarea id="news-input" class="field-input" rows="3"
-        placeholder="e.g. Fed raised interest rates by 0.25%. Tariffs on China increased. NVDA announced new AI chip..."
-        style="resize:vertical;font-family:var(--sans);font-size:12px;margin-bottom:8px"></textarea>
-      <button onclick="analyzeNewsImpact()" id="news-analyze-btn"
-        style="width:100%;padding:9px;border-radius:8px;background:linear-gradient(135deg,#3d7eff,#00a8cc);border:none;color:white;font-family:var(--sans);font-size:12px;font-weight:500;cursor:pointer;transition:all 0.2s">
-        🔍 Analyze Impact on My Stocks
-      </button>
-      <div id="news-impact-result" style="display:none;margin-top:10px"></div>
+    <!-- News Impact Analyzer moved to Intel tab -->
+    <div style="padding:10px 16px;font-size:11px;color:var(--muted)">
+      📰 News Analyzer & 🇺🇸 Trump Watch → go to <strong>INTEL tab</strong>
     </div>
 
   </div>
@@ -1612,6 +1602,52 @@
     </div>
 
 
+
+  </div>
+
+  <!-- Intel Panel -->
+  <div class="content" id="main-intel" style="display:none">
+
+    <!-- Trump Watch -->
+    <div style="background:linear-gradient(135deg,rgba(255,77,109,0.08),rgba(240,180,41,0.05));border:1px solid rgba(255,77,109,0.2);border-radius:12px;padding:16px;margin-bottom:18px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+        <div>
+          <div style="font-size:13px;font-weight:600;color:var(--text)">🇺🇸 Trump Watch</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px">Auto-scans every 30 mins for market-moving statements</div>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
+          <button onclick="fetchTrumpWatch(true)" id="trump-refresh-btn" style="font-family:var(--mono);font-size:9px;padding:3px 9px;border-radius:4px;border:1px solid rgba(255,77,109,0.3);background:rgba(255,77,109,0.08);color:var(--put);cursor:pointer">↻ Refresh Now</button>
+          <div id="trump-last-updated" style="font-family:var(--mono);font-size:9px;color:var(--muted)"></div>
+        </div>
+      </div>
+
+      <!-- Auto-refresh indicator -->
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:12px;font-family:var(--mono);font-size:10px;color:var(--muted)">
+        <div class="live-dot" style="background:var(--put)"></div>
+        Next scan in <span id="trump-countdown" style="color:var(--put)">30:00</span>
+      </div>
+
+      <div id="trump-container">
+        <div style="font-size:12px;color:var(--muted);text-align:center;padding:20px">
+          <div style="font-size:24px;margin-bottom:8px">🇺🇸</div>
+          Tap Refresh Now to scan latest Trump statements
+        </div>
+      </div>
+    </div>
+
+    <!-- News Impact Analyzer -->
+    <div style="background:var(--surface);border:1px solid var(--border2);border-radius:12px;padding:16px">
+      <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:4px">📰 News Impact Analyzer</div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:10px;line-height:1.4">Paste any news headline or event — AI tells you exactly how it affects your stocks and options strategy.</div>
+      <textarea id="news-input" class="field-input" rows="3"
+        placeholder="e.g. Fed raised interest rates... Tariffs on China increased... NVDA announced new chip..."
+        style="resize:vertical;font-family:var(--sans);font-size:12px;margin-bottom:8px"></textarea>
+      <button onclick="analyzeNewsImpact()" id="news-analyze-btn"
+        style="width:100%;padding:10px;border-radius:8px;background:linear-gradient(135deg,#3d7eff,#00a8cc);border:none;color:white;font-family:var(--sans);font-size:13px;font-weight:500;cursor:pointer">
+        🔍 Analyze Impact on My Stocks
+      </button>
+      <div id="news-impact-result" style="display:none;margin-top:12px"></div>
+    </div>
 
   </div>
 
@@ -1926,6 +1962,141 @@ function updateClock() {
 }
 setInterval(updateClock, 1000);
 updateClock();
+
+// ── Trump Watch ──
+let trumpLastFetch = 0;
+let trumpCountdownSecs = 30 * 60;
+let trumpCountdownTimer = null;
+const TRUMP_INTERVAL = 30 * 60 * 1000;
+
+function startTrumpCountdown() {
+  clearInterval(trumpCountdownTimer);
+  trumpCountdownSecs = 30 * 60;
+  trumpCountdownTimer = setInterval(() => {
+    trumpCountdownSecs--;
+    const m = Math.floor(trumpCountdownSecs / 60).toString().padStart(2,'0');
+    const s = (trumpCountdownSecs % 60).toString().padStart(2,'0');
+    const el = document.getElementById('trump-countdown');
+    if (el) el.textContent = `${m}:${s}`;
+    if (trumpCountdownSecs <= 0) {
+      fetchTrumpWatch(false);
+      trumpCountdownSecs = 30 * 60;
+    }
+  }, 1000);
+}
+
+async function fetchTrumpWatch(manual = false) {
+  const container = document.getElementById('trump-container');
+  const lastEl    = document.getElementById('trump-last-updated');
+  const btn       = document.getElementById('trump-refresh-btn');
+  if (!container) return;
+
+  if (btn) { btn.textContent = '⏳ Scanning...'; btn.disabled = true; }
+  container.innerHTML = `<div style="display:flex;align-items:center;gap:8px;padding:12px;font-size:12px;color:var(--muted)"><div class="spinner" style="width:12px;height:12px;border-width:1.5px;border-top-color:var(--put)"></div> Scanning Trump statements & market impact...</div>`;
+
+  const today = new Date().toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric', year:'numeric' });
+  const currentPrices = TICKERS.filter(s => prices[s] > 0).map(s => `${s}: $${prices[s].toFixed(2)}`).join(', ');
+
+  const prompt = `You are a financial analyst monitoring Donald Trump's statements for market impact. Today is ${today}.
+
+Current stock prices: ${currentPrices || 'unavailable'}
+Watchlist: SPY, QQQ, NVDA, AMD, PLTR
+
+Based on your knowledge of recent Trump statements, Truth Social posts, executive orders, tariff announcements, trade policy, and other market-moving actions up to your knowledge cutoff:
+
+What are the most recent and significant Trump-related developments that could affect the stock market and options trading?
+
+Respond ONLY with a JSON object (no markdown):
+{
+  "lastUpdated": "${today}",
+  "overallSentiment": "BULLISH" or "BEARISH" or "VOLATILE" or "NEUTRAL",
+  "marketAlert": "HIGH" or "MEDIUM" or "LOW",
+  "statements": [
+    {
+      "source": "Truth Social" or "Executive Order" or "Press Conference" or "Tweet" or "Policy Announcement",
+      "content": "Brief summary of what Trump said or did",
+      "marketImpact": "BULLISH" or "BEARISH" or "VOLATILE" or "NEUTRAL",
+      "affectedStocks": ["SPY", "NVDA"],
+      "traderAction": "One sentence on what options traders should consider"
+    }
+  ],
+  "bottomLine": "2-sentence summary of overall Trump market impact right now",
+  "optionsStrategy": "Specific advice for options traders this week given Trump's current stance"
+}
+
+Include 2-4 most relevant recent statements/events. Focus on tariffs, trade war, tech policy, AI regulation, Fed policy comments, executive orders that affect markets.`;
+
+  try {
+    const res  = await fetch('/.netlify/functions/signals', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 700, messages: [{ role: 'user', content: prompt }] })
+    });
+    const data = await res.json();
+    const raw  = data.content?.map(b => b.text || '').join('') || '';
+    const clean = raw.replace(/```json|```/g, '').trim();
+    const trump = JSON.parse(clean);
+    trumpLastFetch = Date.now();
+    renderTrumpWatch(trump);
+    if (lastEl) {
+      const t = new Date().toLocaleTimeString('en-US', { hour:'2-digit', minute:'2-digit' });
+      lastEl.textContent = `Last scanned: ${t}`;
+    }
+    if (manual) startTrumpCountdown();
+  } catch(e) {
+    container.innerHTML = `<div style="font-size:12px;color:var(--muted);padding:12px;text-align:center">Could not fetch Trump watch data. Try again.</div>`;
+  }
+
+  if (btn) { btn.textContent = '↻ Refresh Now'; btn.disabled = false; }
+}
+
+function renderTrumpWatch(data) {
+  const container = document.getElementById('trump-container');
+  if (!container || !data) return;
+
+  const alertColor = { HIGH: 'var(--put)', MEDIUM: 'var(--neutral)', LOW: 'var(--call)' }[data.marketAlert] || 'var(--muted)';
+  const sentColor  = { BULLISH: 'var(--call)', BEARISH: 'var(--put)', VOLATILE: 'var(--neutral)', NEUTRAL: 'var(--muted)' }[data.overallSentiment] || 'var(--muted)';
+
+  const statementsHTML = (data.statements || []).map(s => {
+    const ic = { BULLISH:'var(--call)', BEARISH:'var(--put)', VOLATILE:'var(--neutral)', NEUTRAL:'var(--muted)' }[s.marketImpact] || 'var(--muted)';
+    const affected = (s.affectedStocks || []).map(t => `<span style="font-family:var(--mono);font-size:9px;padding:1px 5px;border-radius:3px;background:var(--surface2);color:var(--subtle)">${t}</span>`).join(' ');
+    return `
+      <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:11px 12px;margin-bottom:8px">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;flex-wrap:wrap">
+          <span style="font-family:var(--mono);font-size:9px;padding:2px 7px;border-radius:4px;background:rgba(255,77,109,0.1);color:var(--put);border:1px solid rgba(255,77,109,0.2)">${s.source}</span>
+          <span style="font-family:var(--mono);font-size:9px;color:${ic}">${s.marketImpact}</span>
+          <div style="display:flex;gap:3px">${affected}</div>
+        </div>
+        <div style="font-size:12px;color:var(--text);margin-bottom:6px;line-height:1.4">${s.content}</div>
+        <div style="font-size:11px;color:var(--accent);line-height:1.4">💡 ${s.traderAction}</div>
+      </div>`;
+  }).join('');
+
+  container.innerHTML = `
+    <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+      <span style="font-family:var(--mono);font-size:11px;font-weight:700;color:${sentColor}">${data.overallSentiment}</span>
+      <span style="font-family:var(--mono);font-size:10px;padding:2px 8px;border-radius:4px;background:${alertColor}20;color:${alertColor};border:1px solid ${alertColor}40">${data.marketAlert} ALERT</span>
+    </div>
+
+    ${statementsHTML}
+
+    <div style="background:rgba(61,126,255,0.06);border:1px solid rgba(61,126,255,0.2);border-radius:8px;padding:10px;margin-bottom:8px">
+      <div style="font-size:10px;font-weight:600;color:var(--accent);margin-bottom:4px;letter-spacing:0.08em">BOTTOM LINE</div>
+      <div style="font-size:12px;color:var(--subtle);line-height:1.5">${data.bottomLine}</div>
+    </div>
+
+    <div style="background:rgba(0,214,143,0.05);border:1px solid rgba(0,214,143,0.2);border-radius:8px;padding:10px">
+      <div style="font-size:10px;font-weight:600;color:var(--call);margin-bottom:4px;letter-spacing:0.08em">OPTIONS STRATEGY THIS WEEK</div>
+      <div style="font-size:12px;color:var(--subtle);line-height:1.5">${data.optionsStrategy}</div>
+    </div>
+  `;
+}
+
+// Auto-start countdown when intel tab first opened
+document.getElementById('tab-intel')?.addEventListener('click', () => {
+  if (trumpLastFetch === 0) fetchTrumpWatch(true);
+  if (!trumpCountdownTimer) startTrumpCountdown();
+});
 
 // ── News Impact Analyzer ──
 async function analyzeNewsImpact() {
@@ -2771,17 +2942,21 @@ function renderSignals(signals) {
 function switchTab(tab) {
   const sidebar    = document.getElementById('main-sidebar');
   const content    = document.getElementById('main-content');
+  const intel      = document.getElementById('main-intel');
   const history    = document.getElementById('main-history');
   const rightPanel = document.getElementById('main-right');
 
-  [sidebar, content, history, rightPanel].forEach(el => { if(el) el.classList.remove('mob-active'); if(el) el.style.display = 'none'; });
+  [sidebar, content, intel, history, rightPanel].forEach(el => {
+    if(el) { el.classList.remove('mob-active'); el.style.display = 'none'; }
+  });
   document.querySelectorAll('.mob-tab').forEach(t => t.classList.remove('active'));
 
   const show = (el) => { if(el) { el.style.display = 'block'; el.classList.add('mob-active'); } };
 
-  if (tab === 'watch')   { show(sidebar);    document.getElementById('tab-watch').classList.add('active'); }
-  else if (tab === 'signals') { show(content); document.getElementById('tab-signals').classList.add('active'); }
-  else if (tab === 'history') { show(history); document.getElementById('tab-history').classList.add('active'); renderHistoryPage(); }
+  if      (tab === 'watch')   { show(sidebar);    document.getElementById('tab-watch').classList.add('active'); }
+  else if (tab === 'signals') { show(content);    document.getElementById('tab-signals').classList.add('active'); }
+  else if (tab === 'intel')   { show(intel);      document.getElementById('tab-intel').classList.add('active'); }
+  else if (tab === 'history') { show(history);    document.getElementById('tab-history').classList.add('active'); renderHistoryPage(); }
   else if (tab === 'journal') { show(rightPanel); document.getElementById('tab-journal').classList.add('active'); }
 }
 
