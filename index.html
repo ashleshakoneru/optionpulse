@@ -2045,13 +2045,12 @@ Include 2-4 most relevant recent developments. Focus on tariffs, trade war, tech
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
         max_tokens: 2000,
-        _trumpWatch: true,
+        trump_watch: true,
         messages: [{ role: 'user', content: prompt }]
       })
     });
     const data = await res.json();
-    // Use extracted text or fall back to content array
-    const raw = data._extractedText || (data.content?.map(b => b.text || '').join('') || '');
+    const raw = data.extractedText || (data.content?.map(b => b.text || '').join('') || '');
     const clean = raw.replace(/```json|```/g, '').trim();
     const trump = JSON.parse(clean);
     trumpLastFetch = Date.now();
@@ -2161,10 +2160,10 @@ Analyze this news and respond ONLY with a JSON object (no markdown):
     const res  = await fetch('/.netlify/functions/signals', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 600, _newsSearch: true, messages: [{ role: 'user', content: prompt }] })
+      body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 600, news_search: true, messages: [{ role: 'user', content: prompt }] })
     });
     const data = await res.json();
-    const raw  = data._extractedText || data.content?.map(b => b.text || '').join('') || '';
+    const raw  = data.extractedText || data.content?.map(b => b.text || '').join('') || '';
     const clean = raw.replace(/```json|```/g, '').trim();
     const analysis = JSON.parse(clean);
     renderNewsImpact(analysis);
