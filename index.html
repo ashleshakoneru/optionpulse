@@ -1549,6 +1549,23 @@
         </div>
       </div>
     </div>
+
+    <!-- News Impact Analyzer -->
+    <div class="sidebar-section">
+      <div class="sidebar-label">📰 News Impact Analyzer</div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:8px;line-height:1.4">
+        Saw something in the news? Paste it here and AI will tell you how it affects your stocks.
+      </div>
+      <textarea id="news-input" class="field-input" rows="3"
+        placeholder="e.g. Fed raised interest rates by 0.25%. Tariffs on China increased. NVDA announced new AI chip..."
+        style="resize:vertical;font-family:var(--sans);font-size:12px;margin-bottom:8px"></textarea>
+      <button onclick="analyzeNewsImpact()" id="news-analyze-btn"
+        style="width:100%;padding:9px;border-radius:8px;background:linear-gradient(135deg,#3d7eff,#00a8cc);border:none;color:white;font-family:var(--sans);font-size:12px;font-weight:500;cursor:pointer;transition:all 0.2s">
+        🔍 Analyze Impact on My Stocks
+      </button>
+      <div id="news-impact-result" style="display:none;margin-top:10px"></div>
+    </div>
+
   </div>
 
   <!-- Content -->
@@ -1910,7 +1927,108 @@ function updateClock() {
 setInterval(updateClock, 1000);
 updateClock();
 
-// ── Theme Toggle ──
+// ── News Impact Analyzer ──
+async function analyzeNewsImpact() {
+  const input = document.getElementById('news-input').value.trim();
+  if (!input) { alert('Please paste or type a news headline first.'); return; }
+
+  const btn    = document.getElementById('news-analyze-btn');
+  const result = document.getElementById('news-impact-result');
+  btn.textContent = '🔍 Analyzing...';
+  btn.disabled = true;
+  result.style.display = 'block';
+  result.innerHTML = `<div class="ai-analysis"><div class="analyzing"><div class="spinner" style="width:12px;height:12px;border-width:1.5px"></div> AI analyzing impact on SPY, QQQ, NVDA, AMD, PLTR...</div></div>`;
+
+  const currentPrices = TICKERS.map(sym => prices[sym] > 0 ? `${sym}: $${prices[sym].toFixed(2)}` : `${sym}: unknown`).join(', ');
+
+  const prompt = `You are an expert financial analyst helping a beginner options trader understand how news affects their portfolio.
+
+News/Event the trader saw:
+"${input}"
+
+Current positions being watched:
+${currentPrices}
+
+Stocks in watchlist: SPY (S&P 500 ETF), QQQ (Nasdaq 100 ETF), NVDA (NVIDIA), AMD (Advanced Micro Devices), PLTR (Palantir)
+
+Analyze this news and respond ONLY with a JSON object (no markdown):
+{
+  "headline": "one line summary of the news",
+  "marketImpact": "BULLISH" or "BEARISH" or "NEUTRAL" or "VOLATILE",
+  "impactLevel": "LOW" or "MEDIUM" or "HIGH",
+  "summary": "2-sentence plain English explanation of what this means for the market",
+  "stockImpacts": [
+    {"ticker": "SPY", "impact": "POSITIVE" or "NEGATIVE" or "NEUTRAL", "reason": "one sentence why"},
+    {"ticker": "QQQ", "impact": "...", "reason": "..."},
+    {"ticker": "NVDA", "impact": "...", "reason": "..."},
+    {"ticker": "AMD",  "impact": "...", "reason": "..."},
+    {"ticker": "PLTR", "impact": "...", "reason": "..."}
+  ],
+  "optionsAdvice": "2-3 sentence advice specifically for options traders — should they favor calls or puts, avoid trading, wait for volatility to settle etc.",
+  "watchFor": "One specific thing to monitor in the next 24-48 hours"
+}`;
+
+  try {
+    const res  = await fetch('/.netlify/functions/signals', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 600, messages: [{ role: 'user', content: prompt }] })
+    });
+    const data = await res.json();
+    const raw  = data.content?.map(b => b.text || '').join('') || '';
+    const clean = raw.replace(/```json|```/g, '').trim();
+    const analysis = JSON.parse(clean);
+    renderNewsImpact(analysis);
+  } catch(e) {
+    result.innerHTML = `<div class="ai-analysis" style="color:var(--put)">Could not analyze. Check connection.</div>`;
+  }
+
+  btn.textContent = '🔍 Analyze Impact on My Stocks';
+  btn.disabled = false;
+}
+
+function renderNewsImpact(a) {
+  const result = document.getElementById('news-impact-result');
+  if (!result) return;
+
+  const impactColor = {
+    BULLISH:  'var(--call)',
+    BEARISH:  'var(--put)',
+    NEUTRAL:  'var(--muted)',
+    VOLATILE: 'var(--neutral)'
+  }[a.marketImpact] || 'var(--muted)';
+
+  const levelColor = { HIGH: 'var(--put)', MEDIUM: 'var(--neutral)', LOW: 'var(--call)' }[a.impactLevel] || 'var(--muted)';
+
+  const stockRows = (a.stockImpacts || []).map(s => {
+    const c = s.impact === 'POSITIVE' ? 'var(--call)' : s.impact === 'NEGATIVE' ? 'var(--put)' : 'var(--muted)';
+    const icon = s.impact === 'POSITIVE' ? '▲' : s.impact === 'NEGATIVE' ? '▼' : '—';
+    return `<div style="padding:6px 0;border-bottom:1px solid var(--border);font-size:11px">
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px">
+        <span style="font-family:var(--mono);font-weight:600;color:var(--text)">${s.ticker}</span>
+        <span style="color:${c};font-family:var(--mono);font-size:10px">${icon} ${s.impact}</span>
+      </div>
+      <div style="color:var(--subtle);line-height:1.4">${s.reason}</div>
+    </div>`;
+  }).join('');
+
+  result.innerHTML = `
+    <div style="background:var(--surface);border:1px solid var(--border2);border-radius:10px;padding:12px;margin-top:4px">
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap">
+        <span style="font-family:var(--mono);font-size:12px;font-weight:700;color:${impactColor}">${a.marketImpact}</span>
+        <span style="font-size:10px;font-family:var(--mono);padding:2px 7px;border-radius:4px;background:${levelColor}20;color:${levelColor};border:1px solid ${levelColor}40">${a.impactLevel} IMPACT</span>
+      </div>
+      <div style="font-size:12px;color:var(--subtle);line-height:1.5;margin-bottom:10px">${a.summary}</div>
+      <div style="margin-bottom:10px">${stockRows}</div>
+      <div style="background:rgba(61,126,255,0.06);border:1px solid rgba(61,126,255,0.2);border-radius:7px;padding:9px;font-size:11.5px;color:var(--subtle);margin-bottom:8px;line-height:1.5">
+        <strong style="color:var(--accent)">Options Advice:</strong> ${a.optionsAdvice}
+      </div>
+      <div style="background:rgba(240,180,41,0.06);border:1px solid rgba(240,180,41,0.2);border-radius:7px;padding:9px;font-size:11.5px;color:var(--neutral)">
+        👀 <strong>Watch for:</strong> ${a.watchFor}
+      </div>
+    </div>
+  `;
+}
 function toggleTheme() {
   const isLight = document.body.classList.toggle('light-mode');
   const btn = document.getElementById('theme-btn');
