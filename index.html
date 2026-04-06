@@ -1328,6 +1328,57 @@
     box-shadow: 0 1px 4px rgba(0,0,0,0.06);
   }
 
+  /* ── Chat UI ── */
+  .chat-bubble {
+    max-width: 85%;
+    padding: 10px 14px;
+    border-radius: 16px;
+    font-size: 13px;
+    line-height: 1.5;
+    animation: fadeUp 0.2s ease both;
+  }
+  .chat-bubble.bot {
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    color: var(--text);
+    border-bottom-left-radius: 4px;
+    align-self: flex-start;
+  }
+  .chat-bubble.user {
+    background: linear-gradient(135deg, #3d7eff, #2060dd);
+    color: white;
+    border-bottom-right-radius: 4px;
+    align-self: flex-end;
+  }
+  .chat-bubble.thinking {
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    color: var(--muted);
+    align-self: flex-start;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-style: italic;
+    font-size: 12px;
+  }
+  .chat-chip {
+    font-family: var(--sans);
+    font-size: 11px;
+    padding: 6px 12px;
+    border-radius: 20px;
+    border: 1px solid var(--border2);
+    background: var(--surface2);
+    color: var(--subtle);
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .chat-chip:hover, .chat-chip:active {
+    background: var(--accent-dim);
+    border-color: rgba(61,126,255,0.4);
+    color: var(--accent);
+  }
+
   /* ── Market Countdown Banner ── */
   .market-countdown {
     display: flex;
@@ -1440,11 +1491,37 @@
   🏁 <strong>Market Closed for the Week</strong> — PDT counter reset. See you Monday! 🎯
 </div>
 
+<!-- Macro Event Alert Banner (shown when event within 7 days) -->
+<div id="macro-banner" style="display:none;cursor:pointer;padding:9px 16px;text-align:center;font-size:12px;font-family:var(--mono);border-bottom:1px solid rgba(240,180,41,0.3);background:rgba(240,180,41,0.08);color:var(--neutral)" onclick="openMacroModal()">
+  ⚠️ <span id="macro-banner-text">Major economic report coming up</span> — <span style="text-decoration:underline">tap for details</span>
+</div>
+
+<!-- Macro Events Modal -->
+<div id="macro-modal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.85);align-items:center;justify-content:center;padding:16px">
+  <div style="background:var(--surface);border:1px solid var(--border2);border-radius:14px;padding:22px;width:100%;max-width:440px;max-height:88vh;overflow-y:auto">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <div style="font-size:14px;font-weight:600">📅 Macro Economic Calendar</div>
+      <button onclick="closeMacroModal()" style="background:none;border:none;color:var(--muted);font-size:18px;cursor:pointer">✕</button>
+    </div>
+    <div style="font-size:11.5px;color:var(--subtle);margin-bottom:16px;line-height:1.5">
+      These reports move the entire stock market. Options traders should be extra careful around these dates — IV spikes, prices jump unpredictably.
+    </div>
+    <div id="macro-events-list"></div>
+    <div style="margin-top:16px">
+      <button onclick="analyzeMacroImpact()" style="width:100%;padding:10px;border-radius:8px;background:linear-gradient(135deg,#3d7eff,#00a8cc);border:none;color:white;font-family:var(--sans);font-size:13px;font-weight:500;cursor:pointer">
+        🤖 Analyze Market Impact of Upcoming Reports
+      </button>
+      <div id="macro-ai-analysis" style="display:none;margin-top:12px" class="ai-analysis"></div>
+    </div>
+  </div>
+</div>
+
 <!-- Mobile Tabs -->
 <div class="mobile-tabs">
   <div class="mob-tab" id="tab-watch" onclick="switchTab('watch')">📊 Prices</div>
   <div class="mob-tab active" id="tab-signals" onclick="switchTab('signals')">⚡ Signals</div>
   <div class="mob-tab" id="tab-intel" onclick="switchTab('intel')">📡 Intel</div>
+  <div class="mob-tab" id="tab-ask" onclick="switchTab('ask')">💬 Ask</div>
   <div class="mob-tab" id="tab-history" onclick="switchTab('history')">📜 History</div>
   <div class="mob-tab" id="tab-journal" onclick="switchTab('journal')">📓 Journal</div>
 </div>
@@ -1681,6 +1758,55 @@
         🔍 Analyze Impact on My Stocks
       </button>
       <div id="news-impact-result" style="display:none;margin-top:12px"></div>
+    </div>
+
+  </div>
+
+  <!-- Ask Panel -->
+  <div class="content" id="main-ask" style="display:none;padding:0;display:none;flex-direction:column;height:calc(100vh - 160px)">
+
+    <!-- Chat header -->
+    <div style="padding:16px 16px 10px;border-bottom:1px solid var(--border)">
+      <div style="display:flex;align-items:center;gap:10px">
+        <div style="width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,#3d7eff,#00d68f);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">⚡</div>
+        <div>
+          <div style="font-size:14px;font-weight:600;color:var(--text)">Pulse — Your Trading Assistant</div>
+          <div style="font-size:11px;color:var(--call);display:flex;align-items:center;gap:4px"><div class="live-dot" style="width:6px;height:6px"></div>Online · Knows your portfolio</div>
+        </div>
+        <button onclick="clearChat()" style="margin-left:auto;font-family:var(--mono);font-size:9px;padding:3px 8px;border-radius:4px;border:1px solid var(--border2);background:none;color:var(--muted);cursor:pointer">Clear</button>
+      </div>
+    </div>
+
+    <!-- Chat messages -->
+    <div id="chat-messages" style="flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:12px;min-height:0">
+      <!-- Welcome message -->
+      <div class="chat-bubble bot">
+        <div>Hey! I'm Pulse — your options trading assistant. I know your current signals, prices, and portfolio.</div>
+        <div style="margin-top:8px">Ask me anything about your trades, signals, or options concepts!</div>
+      </div>
+
+      <!-- Quick suggestion chips -->
+      <div id="chat-suggestions" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px">
+        <button class="chat-chip" onclick="askQuestion('Why is NVDA moving today?')">Why is NVDA moving?</button>
+        <button class="chat-chip" onclick="askQuestion('Should I buy AMD calls or puts right now?')">AMD calls or puts?</button>
+        <button class="chat-chip" onclick="askQuestion('What is IV crush?')">What is IV crush?</button>
+        <button class="chat-chip" onclick="askQuestion('Show me my portfolio summary')">My portfolio summary</button>
+        <button class="chat-chip" onclick="askQuestion('Is it a good time to trade today?')">Good time to trade?</button>
+        <button class="chat-chip" onclick="askQuestion('Explain the top signal to me')">Explain top signal</button>
+      </div>
+    </div>
+
+    <!-- Chat input -->
+    <div style="padding:12px 16px;border-top:1px solid var(--border);background:var(--surface)">
+      <div style="display:flex;gap:8px;align-items:flex-end">
+        <textarea id="chat-input" rows="1"
+          placeholder="Ask anything about trading, signals, your portfolio..."
+          style="flex:1;background:var(--bg);border:1px solid var(--border2);border-radius:20px;padding:10px 16px;color:var(--text);font-family:var(--sans);font-size:13px;resize:none;outline:none;max-height:100px;line-height:1.4"
+          onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChatMessage()}"
+          oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,100)+'px'"></textarea>
+        <button onclick="sendChatMessage()" id="chat-send-btn"
+          style="width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#3d7eff,#00d68f);border:none;color:white;font-size:16px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center">↑</button>
+      </div>
     </div>
 
   </div>
@@ -2265,6 +2391,217 @@ function renderNewsImpact(a) {
     </div>
   `;
 }
+    </div>
+  `;
+}
+
+// ── Macro Economic Calendar ──
+const MACRO_EVENTS = [
+  { name: 'CPI Inflation Report', short: 'CPI', date: '2026-04-10', impact: 'HIGH', category: 'inflation',
+    description: 'Consumer Price Index — measures inflation. Higher than expected = Fed may raise rates = bad for stocks.',
+    affect: 'SPY, QQQ drop on hot CPI. Tech (NVDA, AMD) especially sensitive.',
+    strategy: 'Avoid buying calls 2 days before. Consider puts on QQQ if CPI expected hot.' },
+  { name: 'CPI Inflation Report', short: 'CPI', date: '2026-05-13', impact: 'HIGH', category: 'inflation',
+    description: 'Consumer Price Index monthly release.',
+    affect: 'Broad market impact — SPY, QQQ most affected.',
+    strategy: 'Wait 1 hour after release before trading. IV crush happens immediately after.' },
+  { name: 'CPI Inflation Report', short: 'CPI', date: '2026-06-11', impact: 'HIGH', category: 'inflation',
+    description: 'Consumer Price Index monthly release.',
+    affect: 'Broad market impact.',
+    strategy: 'Wait for market to digest before entering positions.' },
+  { name: 'PPI Producer Price Index', short: 'PPI', date: '2026-04-11', impact: 'MEDIUM', category: 'inflation',
+    description: 'Measures inflation at producer level — leads CPI by 1-2 months.',
+    affect: 'Moderate market impact. Confirms or contradicts CPI trend.',
+    strategy: 'Less volatile than CPI but watch direction.' },
+  { name: 'PPI Producer Price Index', short: 'PPI', date: '2026-05-14', impact: 'MEDIUM', category: 'inflation',
+    description: 'Producer Price Index monthly release.',
+    affect: 'Moderate market impact.',
+    strategy: 'Monitor for inflation trend confirmation.' },
+  { name: 'Jobs Report (NFP)', short: 'NFP', date: '2026-05-01', impact: 'HIGH', category: 'employment',
+    description: 'Non-Farm Payrolls — most important monthly jobs data. Too many jobs = Fed keeps rates high.',
+    affect: 'Huge SPY/QQQ move within minutes. Tech stocks volatile.',
+    strategy: 'Never hold options overnight before NFP. IV spikes day before, crashes after.' },
+  { name: 'Jobs Report (NFP)', short: 'NFP', date: '2026-06-05', impact: 'HIGH', category: 'employment',
+    description: 'Non-Farm Payrolls monthly release.',
+    affect: 'Major market mover — all tickers affected.',
+    strategy: 'Avoid entering new positions 2 days before release.' },
+  { name: 'Unemployment Rate', short: 'UNEMP', date: '2026-05-01', impact: 'HIGH', category: 'employment',
+    description: 'Released with NFP. Rising unemployment = economic slowdown.',
+    affect: 'Released simultaneously with NFP — same market impact.',
+    strategy: 'Same as NFP — avoid holding positions through this release.' },
+  { name: 'Fed FOMC Meeting Decision', short: 'FOMC', date: '2026-05-07', impact: 'EXTREME', category: 'fed',
+    description: 'Federal Reserve interest rate decision. Most market-moving event. Rate hike = stocks fall. Rate cut = stocks rally.',
+    affect: 'EVERYTHING moves — SPY, QQQ, NVDA, AMD, PLTR all heavily affected.',
+    strategy: 'Do NOT hold options through FOMC. Close positions before, re-enter 2 hours after.' },
+  { name: 'Fed FOMC Meeting Decision', short: 'FOMC', date: '2026-06-18', impact: 'EXTREME', category: 'fed',
+    description: 'Federal Reserve interest rate decision.',
+    affect: 'Entire market moves significantly.',
+    strategy: 'Close all positions before FOMC day.' },
+  { name: 'GDP Growth Report (Q1 2026)', short: 'GDP', date: '2026-04-30', impact: 'HIGH', category: 'growth',
+    description: 'Gross Domestic Product — measures overall economic growth. Negative two quarters = recession.',
+    affect: 'Strong GDP = bullish SPY/QQQ. Weak GDP = bearish everything.',
+    strategy: 'Watch SPY direction after release. Confirms or breaks market trend.' },
+  { name: 'GDP Growth Report (Q2 2026)', short: 'GDP', date: '2026-07-30', impact: 'HIGH', category: 'growth',
+    description: 'Second quarter GDP estimate.',
+    affect: 'Broad market impact.',
+    strategy: 'Position after initial reaction settles.' },
+  { name: 'PCE Price Index', short: 'PCE', date: '2026-04-30', impact: 'HIGH', category: 'inflation',
+    description: "Personal Consumption Expenditures — the Fed's PREFERRED inflation measure. More important than CPI.",
+    affect: 'Direct impact on Fed rate expectations = moves SPY, QQQ, tech stocks.',
+    strategy: 'Higher than expected PCE = sell calls. Lower = buy calls on dip.' },
+  { name: 'PCE Price Index', short: 'PCE', date: '2026-05-30', impact: 'HIGH', category: 'inflation',
+    description: 'PCE monthly release.',
+    affect: 'Fed rate expectations driver.',
+    strategy: 'This is what the Fed watches most — treat like CPI.' },
+  { name: 'ISM Manufacturing Index', short: 'ISM', date: '2026-05-01', impact: 'MEDIUM', category: 'growth',
+    description: 'Measures health of manufacturing. Above 50 = expansion. Below 50 = contraction.',
+    affect: 'AMD, NVDA sensitive (chip manufacturing). SPY moderate impact.',
+    strategy: 'Below 50 = bearish for tech. Above 55 = bullish signal.' },
+  { name: '10-Year Treasury Auction', short: 'T-NOTE', date: '2026-05-06', impact: 'MEDIUM', category: 'bonds',
+    description: 'US Treasury bond auction. High demand = money flowing INTO bonds = OUT of stocks.',
+    affect: 'Rising 10-year yield hurts tech stocks most — NVDA, AMD, QQQ.',
+    strategy: 'Rising yield = sell tech calls. Falling yield = buy tech.' },
+  { name: 'US Trade Balance Report', short: 'TRADE', date: '2026-05-07', impact: 'MEDIUM', category: 'trade',
+    description: 'Measures imports vs exports. Tariff impacts show up here.',
+    affect: 'Tech stocks (NVDA, AMD) sensitive to China trade data.',
+    strategy: 'Watch for China-specific data — directly impacts NVDA chip export numbers.' },
+  { name: 'Consumer Confidence Index', short: 'CONF', date: '2026-04-28', impact: 'MEDIUM', category: 'sentiment',
+    description: 'How confident consumers feel about the economy.',
+    affect: 'Broad market sentiment indicator. SPY, QQQ react moderately.',
+    strategy: 'Confirms or contradicts other signals. Not a standalone trade trigger.' },
+];
+
+function getDaysUntil(dateStr) {
+  const today = new Date(); today.setHours(0,0,0,0);
+  const event = new Date(dateStr); event.setHours(0,0,0,0);
+  return Math.round((event - today) / (1000 * 60 * 60 * 24));
+}
+
+function checkMacroEvents() {
+  const upcoming = MACRO_EVENTS
+    .map(e => ({ ...e, daysUntil: getDaysUntil(e.date) }))
+    .filter(e => e.daysUntil >= 0 && e.daysUntil <= 7)
+    .sort((a,b) => a.daysUntil - b.daysUntil);
+
+  const banner = document.getElementById('macro-banner');
+  const bannerText = document.getElementById('macro-banner-text');
+  if (!banner) return;
+
+  if (upcoming.length > 0) {
+    banner.style.display = 'block';
+    const next = upcoming[0];
+    const dayLabel = next.daysUntil === 0 ? 'TODAY' : next.daysUntil === 1 ? 'TOMORROW' : `in ${next.daysUntil} days`;
+    bannerText.innerHTML = `<strong>${next.short}</strong> ${next.name} — ${dayLabel} · ${next.impact} IMPACT`;
+    if (next.impact === 'EXTREME') {
+      banner.style.background = 'rgba(255,77,109,0.1)';
+      banner.style.borderColor = 'rgba(255,77,109,0.3)';
+      banner.style.color = 'var(--put)';
+    }
+  } else {
+    banner.style.display = 'none';
+  }
+}
+
+function openMacroModal() {
+  const modal = document.getElementById('macro-modal');
+  if (modal) { modal.style.display = 'flex'; renderMacroEvents(); }
+}
+
+function closeMacroModal() {
+  const modal = document.getElementById('macro-modal');
+  if (modal) modal.style.display = 'none';
+}
+
+function renderMacroEvents() {
+  const list = document.getElementById('macro-events-list');
+  if (!list) return;
+
+  const events = MACRO_EVENTS
+    .map(e => ({ ...e, daysUntil: getDaysUntil(e.date) }))
+    .filter(e => e.daysUntil >= -1 && e.daysUntil <= 30)
+    .sort((a,b) => a.daysUntil - b.daysUntil);
+
+  if (events.length === 0) {
+    list.innerHTML = '<div style="font-size:12px;color:var(--muted);text-align:center;padding:16px">No major reports in next 30 days</div>';
+    return;
+  }
+
+  const impactColor = { EXTREME:'var(--put)', HIGH:'var(--neutral)', MEDIUM:'var(--accent)', LOW:'var(--muted)' };
+  const categoryIcon = { inflation:'📈', employment:'👷', fed:'🏦', growth:'📊', bonds:'💵', trade:'🌐', sentiment:'💭' };
+
+  list.innerHTML = events.map(e => {
+    const dayLabel = e.daysUntil === 0 ? '🔴 TODAY' : e.daysUntil === 1 ? '🟡 TOMORROW' : e.daysUntil <= 7 ? `⚠️ ${e.daysUntil} days` : `📅 ${e.daysUntil} days`;
+    const dateFormatted = new Date(e.date).toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' });
+    return `
+      <div style="background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:13px 14px;margin-bottom:10px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:6px">
+          <div style="display:flex;align-items:center;gap:6px">
+            <span style="font-size:16px">${categoryIcon[e.category]||'📋'}</span>
+            <div>
+              <div style="font-size:13px;font-weight:600;color:var(--text)">${e.name}</div>
+              <div style="font-family:var(--mono);font-size:10px;color:var(--muted)">${dateFormatted}</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:6px;align-items:center">
+            <span style="font-family:var(--mono);font-size:9px;padding:2px 7px;border-radius:4px;background:${impactColor[e.impact]}20;color:${impactColor[e.impact]};border:1px solid ${impactColor[e.impact]}30">${e.impact}</span>
+            <span style="font-family:var(--mono);font-size:10px;color:${e.daysUntil<=1?'var(--put)':e.daysUntil<=7?'var(--neutral)':'var(--muted)'}">${dayLabel}</span>
+          </div>
+        </div>
+        <div style="font-size:11.5px;color:var(--subtle);margin-bottom:6px;line-height:1.5">${e.description}</div>
+        <div style="font-size:11px;padding:6px 9px;background:rgba(255,77,109,0.06);border-radius:5px;color:var(--subtle);margin-bottom:5px">
+          <strong style="color:var(--put)">Affects:</strong> ${e.affect}
+        </div>
+        <div style="font-size:11px;padding:6px 9px;background:rgba(61,126,255,0.06);border-radius:5px;color:var(--subtle)">
+          <strong style="color:var(--accent)">Strategy:</strong> ${e.strategy}
+        </div>
+      </div>`;
+  }).join('');
+}
+
+async function analyzeMacroImpact() {
+  const box = document.getElementById('macro-ai-analysis');
+  if (!box) return;
+  box.style.display = 'block';
+  box.innerHTML = `<div class="analyzing"><div class="spinner" style="width:12px;height:12px;border-width:1.5px"></div> Analyzing upcoming macro impact on your stocks...</div>`;
+
+  const upcoming = MACRO_EVENTS
+    .map(e => ({ ...e, daysUntil: getDaysUntil(e.date) }))
+    .filter(e => e.daysUntil >= 0 && e.daysUntil <= 14)
+    .sort((a,b) => a.daysUntil - b.daysUntil)
+    .slice(0, 5);
+
+  if (upcoming.length === 0) { box.innerHTML = 'No major events in the next 14 days.'; return; }
+
+  const currentPrices = ['SPY','QQQ','NVDA','AMD','PLTR'].filter(s => prices[s]>0).map(s=>`${s}:$${prices[s].toFixed(2)}`).join(', ');
+
+  const prompt = `Options trader needs a macro event briefing. Current prices: ${currentPrices}
+
+Upcoming economic events:
+${upcoming.map(e=>`- ${e.name} on ${e.date} (${e.daysUntil} days away) — ${e.impact} impact`).join('\n')}
+
+In 4-5 sentences explain:
+1. Which event is most critical to watch
+2. How it could affect SPY, QQQ, NVDA, AMD, PLTR specifically
+3. Should trader be cautious with calls or puts this week
+4. One specific action to take before the reports
+
+Be direct and beginner-friendly.`;
+
+  try {
+    const res  = await fetch('/.netlify/functions/signals', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ model:'claude-sonnet-4-20250514', max_tokens:350, messages:[{role:'user',content:prompt}] }) });
+    const data = await res.json();
+    const text = data.content?.map(b=>b.text||'').join('') || 'Could not generate analysis.';
+    box.innerHTML = `<strong>🤖 Macro Impact Analysis:</strong><br><br>${text}`;
+  } catch(e) { box.innerHTML = 'Could not connect. Try again.'; }
+}
+
+document.getElementById('macro-modal')?.addEventListener('click', function(e) {
+  if (e.target === this) closeMacroModal();
+});
+
+checkMacroEvents();
+setInterval(checkMacroEvents, 60 * 60 * 1000);
+
 function toggleTheme() {
   const isLight = document.body.classList.toggle('light-mode');
   const btn = document.getElementById('theme-btn');
@@ -3013,8 +3350,8 @@ function renderSignals(signals) {
       <div class="signal-details">
         <div class="detail-box"><div class="detail-label">Strike</div><div class="detail-value" style="font-size:15px">${s.strike}</div></div>
         <div class="detail-box"><div class="detail-label">Expiry</div><div class="detail-value" style="font-size:15px">${s.expiry}</div></div>
-        <div class="detail-box"><div class="detail-label">Entry Price</div><div class="detail-value" style="font-size:15px">${s.entryPrice}</div></div>
-        <div class="detail-box"><div class="detail-label">Max Risk</div><div class="detail-value" style="color:var(--put);font-size:15px">${s.maxRisk}</div></div>
+        <div class="detail-box real-entry-price"><div class="detail-label">Entry Price</div><div class="detail-value" style="font-size:15px">${s.entryPrice} <span style="font-size:9px;color:var(--muted)">est.</span></div></div>
+        <div class="detail-box real-max-risk"><div class="detail-label">Max Risk</div><div class="detail-value" style="color:var(--put);font-size:15px">${s.maxRisk}</div></div>
       </div>
 
       ${s.iv || s.mfi || s.volume ? `
@@ -3034,7 +3371,7 @@ function renderSignals(signals) {
       </div>` : ''}
 
       <!-- Greeks row -->
-      <div style="display:flex;gap:8px;margin-bottom:10px;padding:8px 10px;background:rgba(61,126,255,0.04);border:1px solid rgba(61,126,255,0.1);border-radius:7px">
+      <div class="real-greeks" style="display:flex;gap:8px;margin-bottom:10px;padding:8px 10px;background:rgba(61,126,255,0.04);border:1px solid rgba(61,126,255,0.1);border-radius:7px">
         <div style="flex:1;text-align:center">
           <div style="font-size:9px;color:var(--muted);letter-spacing:0.08em;margin-bottom:2px">DELTA</div>
           <div style="font-family:var(--mono);font-size:13px;color:${isCall?'var(--call)':'var(--put)'};">${estDelta}</div>
@@ -3060,6 +3397,9 @@ function renderSignals(signals) {
     // Add swipe-to-dismiss touch support
     addSwipeToDismiss(card);
     container.appendChild(card);
+
+    // Enrich with real options data from Alpaca
+    enrichSignalWithRealData(s, card);
   });
 
   const hint = document.createElement('div');
@@ -3153,24 +3493,247 @@ function switchTab(tab) {
   const sidebar    = document.getElementById('main-sidebar');
   const content    = document.getElementById('main-content');
   const intel      = document.getElementById('main-intel');
+  const ask        = document.getElementById('main-ask');
   const history    = document.getElementById('main-history');
   const rightPanel = document.getElementById('main-right');
 
-  [sidebar, content, intel, history, rightPanel].forEach(el => {
+  [sidebar, content, intel, ask, history, rightPanel].forEach(el => {
     if(el) { el.classList.remove('mob-active'); el.style.display = 'none'; }
   });
   document.querySelectorAll('.mob-tab').forEach(t => t.classList.remove('active'));
 
-  const show = (el) => { if(el) { el.style.display = 'block'; el.classList.add('mob-active'); } };
+  const show = (el, flex=false) => { if(el) { el.style.display = flex ? 'flex' : 'block'; el.classList.add('mob-active'); } };
 
-  if      (tab === 'watch')   { show(sidebar);    document.getElementById('tab-watch').classList.add('active'); }
-  else if (tab === 'signals') { show(content);    document.getElementById('tab-signals').classList.add('active'); }
-  else if (tab === 'intel')   { show(intel);      document.getElementById('tab-intel').classList.add('active'); }
-  else if (tab === 'history') { show(history);    document.getElementById('tab-history').classList.add('active'); renderHistoryPage(); }
-  else if (tab === 'journal') { show(rightPanel); document.getElementById('tab-journal').classList.add('active'); }
+  if      (tab === 'watch')   { show(sidebar);         document.getElementById('tab-watch').classList.add('active'); }
+  else if (tab === 'signals') { show(content);         document.getElementById('tab-signals').classList.add('active'); }
+  else if (tab === 'intel')   { show(intel);           document.getElementById('tab-intel').classList.add('active'); }
+  else if (tab === 'ask')     { show(ask, true);       document.getElementById('tab-ask').classList.add('active'); scrollChatToBottom(); }
+  else if (tab === 'history') { show(history);         document.getElementById('tab-history').classList.add('active'); renderHistoryPage(); }
+  else if (tab === 'journal') { show(rightPanel);      document.getElementById('tab-journal').classList.add('active'); }
 }
 
-// ── Signal History ──
+// ── Pulse Chat Assistant ──
+let chatHistory = [];
+
+function scrollChatToBottom() {
+  const msgs = document.getElementById('chat-messages');
+  if (msgs) setTimeout(() => msgs.scrollTop = msgs.scrollHeight, 50);
+}
+
+function addChatMessage(text, type) {
+  const msgs = document.getElementById('chat-messages');
+  if (!msgs) return null;
+
+  // Hide suggestions after first user message
+  if (type === 'user') {
+    const suggestions = document.getElementById('chat-suggestions');
+    if (suggestions) suggestions.style.display = 'none';
+  }
+
+  const bubble = document.createElement('div');
+  bubble.className = `chat-bubble ${type}`;
+  if (type === 'thinking') {
+    bubble.innerHTML = `<div class="spinner" style="width:12px;height:12px;border-width:1.5px"></div> Thinking...`;
+  } else {
+    bubble.innerHTML = text.replace(/\n/g, '<br>');
+  }
+  msgs.appendChild(bubble);
+  scrollChatToBottom();
+  return bubble;
+}
+
+function clearChat() {
+  chatHistory = [];
+  const msgs = document.getElementById('chat-messages');
+  if (!msgs) return;
+  msgs.innerHTML = `
+    <div class="chat-bubble bot">Hey! I'm Pulse. Ask me anything about your trades, signals, or options concepts!</div>
+    <div id="chat-suggestions" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px">
+      <button class="chat-chip" onclick="askQuestion('Why is NVDA moving today?')">Why is NVDA moving?</button>
+      <button class="chat-chip" onclick="askQuestion('Should I buy AMD calls or puts right now?')">AMD calls or puts?</button>
+      <button class="chat-chip" onclick="askQuestion('What is IV crush?')">What is IV crush?</button>
+      <button class="chat-chip" onclick="askQuestion('Show me my portfolio summary')">My portfolio summary</button>
+      <button class="chat-chip" onclick="askQuestion('Is it a good time to trade today?')">Good time to trade?</button>
+      <button class="chat-chip" onclick="askQuestion('Explain the top signal to me')">Explain top signal</button>
+    </div>`;
+}
+
+function askQuestion(q) {
+  const input = document.getElementById('chat-input');
+  if (input) { input.value = q; }
+  sendChatMessage();
+}
+
+async function sendChatMessage() {
+  const input = document.getElementById('chat-input');
+  const btn   = document.getElementById('chat-send-btn');
+  if (!input) return;
+
+  const text = input.value.trim();
+  if (!text) return;
+
+  input.value = '';
+  input.style.height = 'auto';
+  if (btn) btn.disabled = true;
+
+  addChatMessage(text, 'user');
+  const thinkingBubble = addChatMessage('', 'thinking');
+
+  // Build context about current state
+  const priceCtx = TICKERS.filter(s => prices[s]>0).map(s => {
+    const chg = prevClose[s] > 0 ? (((prices[s]-prevClose[s])/prevClose[s])*100).toFixed(2) : null;
+    return `${s}: $${prices[s].toFixed(2)}${chg ? ` (${parseFloat(chg)>=0?'+':''}${chg}%)` : ''}`;
+  }).join(', ');
+
+  const openTrades = trades.filter(t => t.status === 'OPEN' && t.tradeType2 !== 'WATCHED')
+    .map(t => `${t.direction} ${t.ticker} $${t.strike} exp ${t.expiry} entry $${t.entry}`).join('; ') || 'none';
+
+  const recentSignals = allSignals.slice(0,3)
+    .map(s => `${s.direction} ${s.ticker} ${s.strike} ${s.expiry} (${s.confidence}% conf)`).join('; ') || 'none generated yet';
+
+  const systemPrompt = `You are Pulse, a friendly options trading assistant for OptionPulse dashboard. You help a beginner paper trader named Ashlesha.
+
+Current market data:
+- Prices: ${priceCtx || 'loading'}
+- Market: ${new Date().getHours()>=9&&new Date().getHours()<16?'OPEN':'CLOSED'}
+- VIX: ${document.getElementById('vix-val')?.textContent || 'unknown'}
+- SPY Trend: ${document.getElementById('trend-val')?.textContent || 'unknown'}
+
+User's open trades: ${openTrades}
+Recent signals: ${recentSignals}
+Paper P&L this month: ${document.getElementById('week-pnl')?.textContent || 'unknown'}
+
+Rules:
+- Always be encouraging and beginner-friendly
+- Keep answers SHORT — 3-5 sentences max unless explaining a concept
+- Use simple language, no jargon without explanation
+- Always remind this is paper trading / educational
+- Never give specific buy/sell recommendations as financial advice
+- Reference their actual data when relevant`;
+
+  chatHistory.push({ role: 'user', content: text });
+  if (chatHistory.length > 10) chatHistory = chatHistory.slice(-10);
+
+  try {
+    const res  = await fetch('/.netlify/functions/signals', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 400,
+        system: systemPrompt,
+        messages: chatHistory
+      })
+    });
+    const data = await res.json();
+    const reply = data.content?.map(b => b.text||'').join('') || 'Sorry, could not connect. Try again.';
+
+    chatHistory.push({ role: 'assistant', content: reply });
+
+    if (thinkingBubble) {
+      thinkingBubble.className = 'chat-bubble bot';
+      thinkingBubble.innerHTML = reply.replace(/\n/g, '<br>');
+    }
+  } catch(e) {
+    if (thinkingBubble) {
+      thinkingBubble.className = 'chat-bubble bot';
+      thinkingBubble.innerHTML = 'Connection error. Check your internet and try again.';
+    }
+  }
+
+  if (btn) btn.disabled = false;
+  scrollChatToBottom();
+}
+
+// ── Real Options Chain ──
+let optionsCache = {};
+
+async function fetchOptionsChain(ticker, strike, type, expiry) {
+  const cacheKey = `${ticker}_${expiry}`;
+  const now = Date.now();
+  if (optionsCache[cacheKey] && (now - optionsCache[cacheKey].time) < 5 * 60 * 1000) {
+    return findOptionPrice(optionsCache[cacheKey].data, strike, type);
+  }
+  try {
+    const expiryDate = parseExpiryToISO(expiry);
+    if (!expiryDate) return null;
+    const res = await fetch('/.netlify/functions/prices', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ optionsChain: true, ticker, expiration: expiryDate })
+    });
+    const data = await res.json();
+    if (data.error || !data.options) return null;
+    optionsCache[cacheKey] = { data: data.options, time: now };
+    return findOptionPrice(data.options, strike, type);
+  } catch(e) { return null; }
+}
+
+function parseExpiryToISO(expiry) {
+  try {
+    const year = new Date().getFullYear();
+    const d = new Date(`${expiry} ${year}`);
+    if (isNaN(d)) return null;
+    return d.toISOString().split('T')[0];
+  } catch(e) { return null; }
+}
+
+function findOptionPrice(options, strikeStr, type) {
+  if (!options) return null;
+  const strike = parseFloat(String(strikeStr).replace(/[^0-9.]/g,''));
+  const list = type === 'CALL' ? (options.calls||[]) : (options.puts||[]);
+  if (!list.length) return null;
+  let closest = null, minDiff = Infinity;
+  for (const opt of list) {
+    const diff = Math.abs(opt.strike - strike);
+    if (diff < minDiff) { minDiff = diff; closest = opt; }
+  }
+  return closest;
+}
+
+async function enrichSignalWithRealData(signal, cardEl) {
+  const opt = await fetchOptionsChain(signal.ticker, signal.strike, signal.direction, signal.expiry);
+  if (!opt) return;
+
+  const mark = opt.mark > 0 ? opt.mark : opt.last;
+
+  // Update live price
+  if (mark > 0) {
+    const entryEl = cardEl.querySelector('.real-entry-price');
+    if (entryEl) entryEl.innerHTML = `
+      <div class="detail-label">LIVE PRICE <span style="color:var(--call);font-size:8px">● LIVE</span></div>
+      <div class="detail-value" style="font-size:15px;color:var(--call)">$${mark.toFixed(2)}</div>
+      <div style="font-size:9px;color:var(--muted);margin-top:2px">Bid $${opt.bid.toFixed(2)} · Ask $${opt.ask.toFixed(2)}</div>`;
+
+    const riskEl = cardEl.querySelector('.real-max-risk');
+    if (riskEl) riskEl.innerHTML = `
+      <div class="detail-label">Max Risk</div>
+      <div class="detail-value" style="color:var(--put);font-size:15px">$${(mark*100).toFixed(0)}</div>`;
+  }
+
+  // Update Greeks with real data
+  if (opt.delta || opt.theta || opt.iv) {
+    const greeksEl = cardEl.querySelector('.real-greeks');
+    if (greeksEl) greeksEl.innerHTML = `
+      <div style="flex:1;text-align:center">
+        <div style="font-size:9px;color:var(--muted);letter-spacing:0.08em;margin-bottom:2px">DELTA</div>
+        <div style="font-family:var(--mono);font-size:13px;color:${signal.direction==='CALL'?'var(--call)':'var(--put)'}">${opt.delta||'—'}</div>
+      </div>
+      <div style="flex:1;text-align:center;border-left:1px solid var(--border)">
+        <div style="font-size:9px;color:var(--muted);letter-spacing:0.08em;margin-bottom:2px">THETA/DAY</div>
+        <div style="font-family:var(--mono);font-size:13px;color:var(--put)">${opt.theta||'—'}</div>
+      </div>
+      <div style="flex:1;text-align:center;border-left:1px solid var(--border)">
+        <div style="font-size:9px;color:var(--muted);letter-spacing:0.08em;margin-bottom:2px">IV</div>
+        <div style="font-family:var(--mono);font-size:13px;color:${parseFloat(opt.iv||'30')>50?'var(--neutral)':'var(--call)'}">${opt.iv?opt.iv+'%':'—'}</div>
+      </div>
+      <div style="flex:1;text-align:center;border-left:1px solid var(--border)">
+        <div style="font-size:9px;color:var(--muted);letter-spacing:0.08em;margin-bottom:2px">OI</div>
+        <div style="font-family:var(--mono);font-size:13px;color:var(--text)">${opt.openInterest>0?opt.openInterest.toLocaleString():'—'}</div>
+      </div>`;
+  }
+}
+
 let signalHistory = [];
 let historyFilter = 'all';
 
