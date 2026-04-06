@@ -235,7 +235,7 @@
     }
 
     .sidebar, .right-panel {
-      display: none;
+      display: none !important;
       border: none;
       padding: 16px;
     }
@@ -243,10 +243,10 @@
     .content { padding: 14px; }
 
     .sidebar.mob-active,
-    .right-panel.mob-active,
-    .content.mob-active { display: block; }
+    .right-panel.mob-active { display: block !important; }
 
-    .content { display: none; }
+    .content { display: none !important; }
+    .content.mob-active { display: block !important; }
 
     .signal-details { grid-template-columns: 1fr 1fr; }
 
