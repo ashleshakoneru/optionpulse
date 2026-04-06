@@ -8,19 +8,93 @@ exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers, body: '' };
 
   try {
-    // Read keys from environment variables (set in Netlify dashboard)
     const alpacaKey    = process.env.ALPACA_KEY;
     const alpacaSecret = process.env.ALPACA_SECRET;
 
     if (!alpacaKey || !alpacaSecret) {
-      return { statusCode: 400, headers, body: JSON.stringify({ error: 'Alpaca keys not configured in Netlify environment variables' }) };
+      return { statusCode: 400, headers, body: JSON.stringify({ error: 'Alpaca keys not configured' }) };
     }
 
-    const { symbols } = JSON.parse(event.body || '{}');
+    const body = JSON.parse(event.body || '{}');
+    const { symbols, optionsChain, ticker, expiration } = body;
+
+    const ah = {
+      'APCA-API-KEY-ID': alpacaKey,
+      'APCA-API-SECRET-KEY': alpacaSecret
+    };
+
+    // ── Options Chain Request ──
+    if (optionsChain && ticker) {
+      try {
+        // Get next 3 Friday expirations
+        const expirations = getNextExpirations(3);
+        const expDate = expiration || expirations[0];
+
+        // Fetch options snapshot for ticker
+        const optRes = await fetch(
+          `https://data.alpaca.markets/v1beta1/options/snapshots/${ticker}?expiration_date=${expDate}&feed=indicative&limit=50`,
+          { headers: ah }
+        );
+
+        if (!optRes.ok) {
+          const errText = await optRes.text();
+          return { statusCode: 200, headers, body: JSON.stringify({ options: [], error: `Options API: ${optRes.status} - ${errText}` }) };
+        }
+
+        const optData = await optRes.json();
+        const snapshots = optData.snapshots || {};
+
+        // Parse and organize options data
+        const calls = [];
+        const puts  = [];
+
+        for (const [symbol, snap] of Object.entries(snapshots)) {
+          const greeks   = snap.greeks || {};
+          const quote    = snap.latestQuote || {};
+          const trade    = snap.latestTrade || {};
+          const details  = snap.details || {};
+
+          const item = {
+            symbol,
+            strike:       details.strikePrice || 0,
+            expiry:       details.expirationDate || expDate,
+            type:         details.optionType || 'call',
+            bid:          quote.bp || 0,
+            ask:          quote.ap || 0,
+            mark:         ((quote.bp || 0) + (quote.ap || 0)) / 2,
+            last:         trade.p || 0,
+            volume:       snap.dailyBar?.v || 0,
+            openInterest: snap.openInterest || 0,
+            iv:           snap.impliedVolatility ? (snap.impliedVolatility * 100).toFixed(1) : null,
+            delta:        greeks.delta ? greeks.delta.toFixed(4) : null,
+            theta:        greeks.theta ? greeks.theta.toFixed(4) : null,
+            gamma:        greeks.gamma ? greeks.gamma.toFixed(4) : null,
+            vega:         greeks.vega  ? greeks.vega.toFixed(4)  : null,
+          };
+
+          if (details.optionType === 'call') calls.push(item);
+          else puts.push(item);
+        }
+
+        // Sort by strike
+        calls.sort((a,b) => a.strike - b.strike);
+        puts.sort((a,b)  => a.strike - b.strike);
+
+        return {
+          statusCode: 200,
+          headers,
+          body: JSON.stringify({ options: { calls, puts }, expirations, ticker })
+        };
+
+      } catch(e) {
+        return { statusCode: 200, headers, body: JSON.stringify({ options: [], error: e.message }) };
+      }
+    }
+
+    // ── Stock Prices Request ──
     if (!symbols) return { statusCode: 400, headers, body: JSON.stringify({ error: 'Missing symbols' }) };
 
     const syms = symbols.join(',');
-    const ah = { 'APCA-API-KEY-ID': alpacaKey, 'APCA-API-SECRET-KEY': alpacaSecret };
 
     // Latest trades
     const tradeRes  = await fetch(`https://data.alpaca.markets/v2/stocks/trades/latest?symbols=${syms}&feed=iex`, { headers: ah });
@@ -47,3 +121,18 @@ exports.handler = async (event) => {
     return { statusCode: 500, headers, body: JSON.stringify({ error: err.message }) };
   }
 };
+
+function getNextExpirations(count) {
+  const dates = [];
+  const d = new Date();
+  d.setHours(0,0,0,0);
+  let checked = 0;
+  while (dates.length < count && checked < 60) {
+    d.setDate(d.getDate() + 1);
+    checked++;
+    if (d.getDay() === 5) { // Friday
+      dates.push(d.toISOString().split('T')[0]);
+    }
+  }
+  return dates;
+}
