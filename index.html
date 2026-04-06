@@ -1521,7 +1521,6 @@
   <div class="mob-tab" id="tab-watch" onclick="switchTab('watch')">📊 Prices</div>
   <div class="mob-tab active" id="tab-signals" onclick="switchTab('signals')">⚡ Signals</div>
   <div class="mob-tab" id="tab-intel" onclick="switchTab('intel')">📡 Intel</div>
-  <div class="mob-tab" id="tab-ask" onclick="switchTab('ask')">💬 Ask</div>
   <div class="mob-tab" id="tab-history" onclick="switchTab('history')">📜 History</div>
   <div class="mob-tab" id="tab-journal" onclick="switchTab('journal')">📓 Journal</div>
 </div>
@@ -1758,55 +1757,6 @@
         🔍 Analyze Impact on My Stocks
       </button>
       <div id="news-impact-result" style="display:none;margin-top:12px"></div>
-    </div>
-
-  </div>
-
-  <!-- Ask Panel -->
-  <div class="content" id="main-ask" style="display:none;padding:0;flex-direction:column;height:calc(100vh - 160px)">
-
-    <!-- Chat header -->
-    <div style="padding:16px 16px 10px;border-bottom:1px solid var(--border)">
-      <div style="display:flex;align-items:center;gap:10px">
-        <div style="width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,#3d7eff,#00d68f);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">⚡</div>
-        <div>
-          <div style="font-size:14px;font-weight:600;color:var(--text)">Pulse — Your Trading Assistant</div>
-          <div style="font-size:11px;color:var(--call);display:flex;align-items:center;gap:4px"><div class="live-dot" style="width:6px;height:6px"></div>Online · Knows your portfolio</div>
-        </div>
-        <button onclick="clearChat()" style="margin-left:auto;font-family:var(--mono);font-size:9px;padding:3px 8px;border-radius:4px;border:1px solid var(--border2);background:none;color:var(--muted);cursor:pointer">Clear</button>
-      </div>
-    </div>
-
-    <!-- Chat messages -->
-    <div id="chat-messages" style="flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:12px;min-height:0">
-      <!-- Welcome message -->
-      <div class="chat-bubble bot">
-        <div>Hey! I'm Pulse — your options trading assistant. I know your current signals, prices, and portfolio.</div>
-        <div style="margin-top:8px">Ask me anything about your trades, signals, or options concepts!</div>
-      </div>
-
-      <!-- Quick suggestion chips -->
-      <div id="chat-suggestions" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px">
-        <button class="chat-chip" onclick="askQuestion('Why is NVDA moving today?')">Why is NVDA moving?</button>
-        <button class="chat-chip" onclick="askQuestion('Should I buy AMD calls or puts right now?')">AMD calls or puts?</button>
-        <button class="chat-chip" onclick="askQuestion('What is IV crush?')">What is IV crush?</button>
-        <button class="chat-chip" onclick="askQuestion('Show me my portfolio summary')">My portfolio summary</button>
-        <button class="chat-chip" onclick="askQuestion('Is it a good time to trade today?')">Good time to trade?</button>
-        <button class="chat-chip" onclick="askQuestion('Explain the top signal to me')">Explain top signal</button>
-      </div>
-    </div>
-
-    <!-- Chat input -->
-    <div style="padding:12px 16px;border-top:1px solid var(--border);background:var(--surface)">
-      <div style="display:flex;gap:8px;align-items:flex-end">
-        <textarea id="chat-input" rows="1"
-          placeholder="Ask anything about trading, signals, your portfolio..."
-          style="flex:1;background:var(--bg);border:1px solid var(--border2);border-radius:20px;padding:10px 16px;color:var(--text);font-family:var(--sans);font-size:13px;resize:none;outline:none;max-height:100px;line-height:1.4"
-          onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChatMessage()}"
-          oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,100)+'px'"></textarea>
-        <button onclick="sendChatMessage()" id="chat-send-btn"
-          style="width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#3d7eff,#00d68f);border:none;color:white;font-size:16px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center">↑</button>
-      </div>
     </div>
 
   </div>
@@ -2184,33 +2134,7 @@ async function fetchTrumpWatch(manual = false) {
   const today = new Date().toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric', year:'numeric' });
   const currentPrices = TICKERS.filter(s => prices[s] > 0).map(s => `${s}: $${prices[s].toFixed(2)}`).join(', ');
 
-  const prompt = `Search the web for the latest Trump news from today and this week that could affect the stock market.
-
-Search for: "Trump market" OR "Trump tariffs" OR "Trump stocks" OR "Trump economy" site:reuters.com OR site:bloomberg.com OR site:cnbc.com
-
-Today is ${today}.
-Current stock prices: ${currentPrices || 'unavailable'}
-Watchlist: SPY, QQQ, NVDA, AMD, PLTR
-
-After searching, analyze the results and respond ONLY with a JSON object (no markdown):
-{
-  "lastUpdated": "${today}",
-  "overallSentiment": "BULLISH" or "BEARISH" or "VOLATILE" or "NEUTRAL",
-  "marketAlert": "HIGH" or "MEDIUM" or "LOW",
-  "statements": [
-    {
-      "source": "Reuters" or "CNBC" or "Bloomberg" or "Truth Social" or "White House" etc,
-      "content": "Brief summary of what happened",
-      "marketImpact": "BULLISH" or "BEARISH" or "VOLATILE" or "NEUTRAL",
-      "affectedStocks": ["SPY", "NVDA"],
-      "traderAction": "One sentence on what options traders should consider"
-    }
-  ],
-  "bottomLine": "2-sentence summary of overall Trump market impact right now",
-  "optionsStrategy": "Specific advice for options traders this week given current Trump news"
-}
-
-Include 2-4 most relevant recent developments. Focus on tariffs, trade war, tech policy, AI regulation, executive orders that affect markets.`;
+  const prompt = 'Search the web for the latest Trump news from today and this week that could affect the stock market. Today is ' + today + '. Current prices: ' + (currentPrices || 'unavailable') + '. Watchlist: SPY, QQQ, NVDA, AMD, PLTR.\n\nFind the most recent Trump statements, executive orders, tariff news, or policy announcements from the past 48 hours that could move markets.\n\nRespond ONLY with a JSON object (no markdown):\n{"lastUpdated":"' + today + '","overallSentiment":"BULLISH or BEARISH or VOLATILE or NEUTRAL","marketAlert":"HIGH or MEDIUM or LOW","statements":[{"source":"Reuters or CNBC etc","content":"Brief summary","marketImpact":"BULLISH or BEARISH or VOLATILE or NEUTRAL","affectedStocks":["SPY"],"traderAction":"One sentence advice"}],"bottomLine":"2-sentence market impact summary","optionsStrategy":"Specific options trader advice this week"}\n\nInclude 2-4 most relevant recent developments. Focus on tariffs, trade war, tech policy, AI regulation, executive orders.';
 
   try {
     const res = await fetch('/.netlify/functions/signals', {
@@ -2225,7 +2149,7 @@ Include 2-4 most relevant recent developments. Focus on tariffs, trade war, tech
     });
     const data = await res.json();
     const raw = data.extractedText || (data.content?.map(b => b.text || '').join('') || '');
-    const clean = raw.replace(/```json|```/g, '').trim();
+    const clean = raw.replace(/[\s\S]*?(?=\{)/,'').replace(/\}[^\}]*$/,'}');
     const trump = JSON.parse(clean);
     trumpLastFetch = Date.now();
     renderTrumpWatch(trump);
@@ -2303,32 +2227,7 @@ async function analyzeNewsImpact() {
 
   const currentPrices = TICKERS.map(sym => prices[sym] > 0 ? `${sym}: $${prices[sym].toFixed(2)}` : `${sym}: unknown`).join(', ');
 
-  const prompt = `You are an expert financial analyst helping a beginner options trader understand how news affects their portfolio.
-
-News/Event the trader saw:
-"${input}"
-
-Current positions being watched:
-${currentPrices}
-
-Stocks in watchlist: SPY (S&P 500 ETF), QQQ (Nasdaq 100 ETF), NVDA (NVIDIA), AMD (Advanced Micro Devices), PLTR (Palantir)
-
-Analyze this news and respond ONLY with a JSON object (no markdown):
-{
-  "headline": "one line summary of the news",
-  "marketImpact": "BULLISH" or "BEARISH" or "NEUTRAL" or "VOLATILE",
-  "impactLevel": "LOW" or "MEDIUM" or "HIGH",
-  "summary": "2-sentence plain English explanation of what this means for the market",
-  "stockImpacts": [
-    {"ticker": "SPY", "impact": "POSITIVE" or "NEGATIVE" or "NEUTRAL", "reason": "one sentence why"},
-    {"ticker": "QQQ", "impact": "...", "reason": "..."},
-    {"ticker": "NVDA", "impact": "...", "reason": "..."},
-    {"ticker": "AMD",  "impact": "...", "reason": "..."},
-    {"ticker": "PLTR", "impact": "...", "reason": "..."}
-  ],
-  "optionsAdvice": "2-3 sentence advice specifically for options traders — should they favor calls or puts, avoid trading, wait for volatility to settle etc.",
-  "watchFor": "One specific thing to monitor in the next 24-48 hours"
-}`;
+  const prompt = 'You are an expert financial analyst. A beginner options trader saw this news: "' + input + '". Current prices: ' + currentPrices + '. Watchlist: SPY, QQQ, NVDA, AMD, PLTR.\n\nAnalyze this news and respond ONLY with a JSON object (no markdown, no backticks):\n{"headline":"one line summary","marketImpact":"BULLISH or BEARISH or NEUTRAL or VOLATILE","impactLevel":"LOW or MEDIUM or HIGH","summary":"2-sentence explanation","stockImpacts":[{"ticker":"SPY","impact":"POSITIVE or NEGATIVE or NEUTRAL","reason":"why"},{"ticker":"QQQ","impact":"...","reason":"..."},{"ticker":"NVDA","impact":"...","reason":"..."},{"ticker":"AMD","impact":"...","reason":"..."},{"ticker":"PLTR","impact":"...","reason":"..."}],"optionsAdvice":"2-3 sentence advice for options traders","watchFor":"One thing to monitor next 24-48 hours"}';
 
   try {
     const res  = await fetch('/.netlify/functions/signals', {
@@ -2338,7 +2237,7 @@ Analyze this news and respond ONLY with a JSON object (no markdown):
     });
     const data = await res.json();
     const raw  = data.extractedText || data.content?.map(b => b.text || '').join('') || '';
-    const clean = raw.replace(/```json|```/g, '').trim();
+    const clean = raw.replace(/[\s\S]*?(?=\{)/,'').replace(/\}[^\}]*$/,'}');
     const analysis = JSON.parse(clean);
     renderNewsImpact(analysis);
   } catch(e) {
@@ -3273,7 +3172,7 @@ Keep rationale beginner-friendly. Flag day trades clearly. Max confidence 85.`;
 
     const data = await res.json();
     const raw = data.content.map(b => b.text || '').join('');
-    const clean = raw.replace(/```json|```/g, '').trim();
+    const clean = raw.replace(/[\s\S]*?(?=\{)/,'').replace(/\}[^\}]*$/,'}');
     const signals = JSON.parse(clean);
 
     renderSignals(signals);
@@ -3493,23 +3392,21 @@ function switchTab(tab) {
   const sidebar    = document.getElementById('main-sidebar');
   const content    = document.getElementById('main-content');
   const intel      = document.getElementById('main-intel');
-  const ask        = document.getElementById('main-ask');
   const history    = document.getElementById('main-history');
   const rightPanel = document.getElementById('main-right');
 
-  [sidebar, content, intel, ask, history, rightPanel].forEach(el => {
+  [sidebar, content, intel, history, rightPanel].forEach(el => {
     if(el) { el.classList.remove('mob-active'); el.style.display = 'none'; }
   });
   document.querySelectorAll('.mob-tab').forEach(t => t.classList.remove('active'));
 
-  const show = (el, flex=false) => { if(el) { el.style.display = flex ? 'flex' : 'block'; el.classList.add('mob-active'); } };
+  const show = (el) => { if(el) { el.style.display = 'block'; el.classList.add('mob-active'); } };
 
-  if      (tab === 'watch')   { show(sidebar);         document.getElementById('tab-watch').classList.add('active'); }
-  else if (tab === 'signals') { show(content);         document.getElementById('tab-signals').classList.add('active'); }
-  else if (tab === 'intel')   { show(intel);           document.getElementById('tab-intel').classList.add('active'); }
-  else if (tab === 'ask')     { show(ask, true);       document.getElementById('tab-ask').classList.add('active'); scrollChatToBottom(); }
-  else if (tab === 'history') { show(history);         document.getElementById('tab-history').classList.add('active'); renderHistoryPage(); }
-  else if (tab === 'journal') { show(rightPanel);      document.getElementById('tab-journal').classList.add('active'); }
+  if      (tab === 'watch')   { show(sidebar);    document.getElementById('tab-watch').classList.add('active'); }
+  else if (tab === 'signals') { show(content);    document.getElementById('tab-signals').classList.add('active'); }
+  else if (tab === 'intel')   { show(intel);      document.getElementById('tab-intel').classList.add('active'); }
+  else if (tab === 'history') { show(history);    document.getElementById('tab-history').classList.add('active'); renderHistoryPage(); }
+  else if (tab === 'journal') { show(rightPanel); document.getElementById('tab-journal').classList.add('active'); }
 }
 
 // ── Pulse Chat Assistant ──
@@ -3717,19 +3614,19 @@ async function enrichSignalWithRealData(signal, cardEl) {
     if (greeksEl) greeksEl.innerHTML = `
       <div style="flex:1;text-align:center">
         <div style="font-size:9px;color:var(--muted);letter-spacing:0.08em;margin-bottom:2px">DELTA</div>
-        <div style="font-family:var(--mono);font-size:13px;color:${signal.direction==='CALL'?'var(--call)':'var(--put)'}">${opt.delta||'—'}</div>
+        <div style="font-family:var(--mono);font-size:13px;color:${signal.direction==='CALL'?'var(--call)':'var(--put)'}">${opt.delta||'-'}</div>
       </div>
       <div style="flex:1;text-align:center;border-left:1px solid var(--border)">
         <div style="font-size:9px;color:var(--muted);letter-spacing:0.08em;margin-bottom:2px">THETA/DAY</div>
-        <div style="font-family:var(--mono);font-size:13px;color:var(--put)">${opt.theta||'—'}</div>
+        <div style="font-family:var(--mono);font-size:13px;color:var(--put)">${opt.theta||'-'}</div>
       </div>
       <div style="flex:1;text-align:center;border-left:1px solid var(--border)">
         <div style="font-size:9px;color:var(--muted);letter-spacing:0.08em;margin-bottom:2px">IV</div>
-        <div style="font-family:var(--mono);font-size:13px;color:${parseFloat(opt.iv||'30')>50?'var(--neutral)':'var(--call)'}">${opt.iv?opt.iv+'%':'—'}</div>
+        <div style="font-family:var(--mono);font-size:13px;color:${parseFloat(opt.iv||'30')>50?'var(--neutral)':'var(--call)'}">${opt.iv?opt.iv+'%':'-'}</div>
       </div>
       <div style="flex:1;text-align:center;border-left:1px solid var(--border)">
         <div style="font-size:9px;color:var(--muted);letter-spacing:0.08em;margin-bottom:2px">OI</div>
-        <div style="font-family:var(--mono);font-size:13px;color:var(--text)">${opt.openInterest>0?opt.openInterest.toLocaleString():'—'}</div>
+        <div style="font-family:var(--mono);font-size:13px;color:var(--text)">${opt.openInterest>0?opt.openInterest.toLocaleString():'-'}</div>
       </div>`;
   }
 }
@@ -4383,7 +4280,7 @@ Respond ONLY with a JSON object like this (no markdown, no extra text):
     });
     const data = await res.json();
     const raw  = data.content?.map(b => b.text || '').join('') || '';
-    const clean = raw.replace(/```json|```/g, '').trim();
+    const clean = raw.replace(/[\s\S]*?(?=\{)/,'').replace(/\}[^\}]*$/,'}');
     const news = JSON.parse(clean);
 
     newsCache[sym]      = news;
